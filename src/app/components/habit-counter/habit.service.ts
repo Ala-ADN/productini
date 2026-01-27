@@ -1,16 +1,15 @@
-import { Injectable, signal, computed, effect } from '@angular/core';
-import { Habit, HabitHistory, HabitStats, HABIT_COLORS, HABIT_ICONS } from './habit.model';
+import { Injectable, signal, computed } from '@angular/core';
+import { Habit, HabitStats, HABIT_COLORS, HABIT_ICONS } from './habit.model';
+import { db, HabitRecord, HabitHistory } from '../../db';
 
 @Injectable({
   providedIn: 'root',
 })
 export class HabitService {
-  private readonly STORAGE_KEY = 'prodhub_habits';
-  private readonly LAST_RESET_KEY = 'prodhub_last_reset';
-
   // Reactive state using signals
   readonly habits = signal<Habit[]>([]);
   readonly selectedHabitId = signal<string | null>(null);
+  readonly isLoading = signal<boolean>(true);
 
   // Computed values
   readonly selectedHabit = computed(() => {
@@ -60,175 +59,274 @@ export class HabitService {
   });
 
   constructor() {
-    this.loadFromStorage();
-    this.checkDailyReset();
+    this.initializeFromDB();
+  }
 
-    // Auto-save to localStorage whenever habits change
-    effect(() => {
-      const habits = this.habits();
-      this.saveToStorage(habits);
-    });
+  private async initializeFromDB(): Promise<void> {
+    try {
+      await this.checkDailyReset();
+      await this.loadFromDB();
+    } catch (e) {
+      console.error('Failed to initialize habits from DB:', e);
+    } finally {
+      this.isLoading.set(false);
+    }
   }
 
   private getTodayString(): string {
     return new Date().toISOString().split('T')[0];
   }
 
-  private loadFromStorage(): void {
+  private habitRecordToHabit(record: HabitRecord): Habit {
+    return {
+      id: String(record.id),
+      name: record.name,
+      icon: record.icon,
+      color: record.color,
+      dailyGoal: record.dailyGoal,
+      completionsToday: record.completionsToday,
+      streak: record.streak,
+      bestStreak: record.bestStreak,
+      totalCompletions: record.totalCompletions,
+      createdAt: new Date(record.createdAt),
+      lastCompletedAt: record.lastCompletedAt ? new Date(record.lastCompletedAt) : null,
+      history: record.history,
+    };
+  }
+
+  private async loadFromDB(): Promise<void> {
     try {
-      const stored = localStorage.getItem(this.STORAGE_KEY);
-      if (stored) {
-        const parsed = JSON.parse(stored) as Habit[];
-        // Convert date strings back to Date objects
-        const habits = parsed.map((h) => ({
-          ...h,
-          createdAt: new Date(h.createdAt),
-          lastCompletedAt: h.lastCompletedAt ? new Date(h.lastCompletedAt) : null,
-        }));
-        this.habits.set(habits);
+      const records = await db.habits.orderBy('order').toArray();
+      const habits = records.map((r) => this.habitRecordToHabit(r));
+      this.habits.set(habits);
+    } catch (e) {
+      console.error('Failed to load habits from DB:', e);
+    }
+  }
+
+  private async updateHabitInDB(id: number, updates: Partial<HabitRecord>): Promise<void> {
+    await db.habits.update(id, updates);
+  }
+
+  private async deleteHabitFromDB(id: number): Promise<void> {
+    await db.habits.delete(id);
+  }
+
+  private async checkDailyReset(): Promise<void> {
+    const today = this.getTodayString();
+    
+    try {
+      const metadata = await db.habitMetadata.get('habit_metadata');
+      
+      if (!metadata || metadata.lastResetDate !== today) {
+        await this.performDailyReset();
+        await db.habitMetadata.put({ id: 'habit_metadata', lastResetDate: today });
       }
     } catch (e) {
-      console.error('Failed to load habits from storage:', e);
+      console.error('Failed to check daily reset:', e);
     }
   }
 
-  private saveToStorage(habits: Habit[]): void {
-    try {
-      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(habits));
-    } catch (e) {
-      console.error('Failed to save habits to storage:', e);
-    }
-  }
-
-  private checkDailyReset(): void {
-    const today = this.getTodayString();
-    const lastReset = localStorage.getItem(this.LAST_RESET_KEY);
-
-    if (lastReset !== today) {
-      this.performDailyReset();
-      localStorage.setItem(this.LAST_RESET_KEY, today);
-    }
-  }
-
-  private performDailyReset(): void {
-    const today = this.getTodayString();
+  private async performDailyReset(): Promise<void> {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
     const yesterdayString = yesterday.toISOString().split('T')[0];
 
-    this.habits.update((habits) =>
-      habits.map((habit) => {
-        // Save yesterday's progress to history if there was any activity
+    try {
+      const records = await db.habits.toArray();
+      
+      for (const record of records) {
+        // Save yesterday's progress to history
         const historyEntry: HabitHistory = {
           date: yesterdayString,
-          completions: habit.completionsToday,
-          goalMet: habit.completionsToday >= habit.dailyGoal,
+          completions: record.completionsToday,
+          goalMet: record.completionsToday >= record.dailyGoal,
         };
 
         // Update streak
-        let newStreak = habit.streak;
-        if (habit.completionsToday >= habit.dailyGoal) {
-          newStreak = habit.streak + 1;
-        } else if (habit.completionsToday === 0) {
+        let newStreak = record.streak;
+        if (record.completionsToday >= record.dailyGoal) {
+          newStreak = record.streak + 1;
+        } else if (record.completionsToday === 0) {
           newStreak = 0;
         }
 
-        const newBestStreak = Math.max(habit.bestStreak, newStreak);
+        const newBestStreak = Math.max(record.bestStreak, newStreak);
 
         // Only add to history if there was activity or it's a tracked day
         const newHistory =
-          habit.completionsToday > 0 || habit.history.length > 0
-            ? [...habit.history.slice(-29), historyEntry] // Keep last 30 days
-            : habit.history;
+          record.completionsToday > 0 || record.history.length > 0
+            ? [...record.history.slice(-29), historyEntry] // Keep last 30 days
+            : record.history;
 
-        return {
-          ...habit,
+        await db.habits.update(record.id!, {
           completionsToday: 0,
           streak: newStreak,
           bestStreak: newBestStreak,
           history: newHistory,
-        };
-      })
-    );
+        });
+      }
+    } catch (e) {
+      console.error('Failed to perform daily reset:', e);
+    }
   }
 
-  generateId(): string {
-    return `habit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  }
+  async addHabit(name: string, dailyGoal: number = 1, icon?: string, color?: string): Promise<void> {
+    const currentHabits = this.habits();
+    const order = currentHabits.length;
 
-  addHabit(name: string, dailyGoal: number = 1, icon?: string, color?: string): void {
-    const newHabit: Habit = {
-      id: this.generateId(),
+    const newRecord: Omit<HabitRecord, 'id'> = {
       name,
       icon: icon || HABIT_ICONS[Math.floor(Math.random() * HABIT_ICONS.length)],
-      color: color || HABIT_COLORS[this.habits().length % HABIT_COLORS.length],
+      color: color || HABIT_COLORS[currentHabits.length % HABIT_COLORS.length],
       dailyGoal,
       completionsToday: 0,
       streak: 0,
       bestStreak: 0,
       totalCompletions: 0,
-      createdAt: new Date(),
+      createdAt: Date.now(),
       lastCompletedAt: null,
       history: [],
+      order,
     };
 
-    this.habits.update((habits) => [...habits, newHabit]);
-  }
-
-  removeHabit(id: string): void {
-    this.habits.update((habits) => habits.filter((h) => h.id !== id));
-    if (this.selectedHabitId() === id) {
-      this.selectedHabitId.set(null);
+    try {
+      const id = await db.habits.add(newRecord as HabitRecord);
+      const newHabit: Habit = {
+        id: String(id),
+        name: newRecord.name,
+        icon: newRecord.icon,
+        color: newRecord.color,
+        dailyGoal: newRecord.dailyGoal,
+        completionsToday: 0,
+        streak: 0,
+        bestStreak: 0,
+        totalCompletions: 0,
+        createdAt: new Date(newRecord.createdAt),
+        lastCompletedAt: null,
+        history: [],
+      };
+      this.habits.update((habits) => [...habits, newHabit]);
+    } catch (e) {
+      console.error('Failed to add habit:', e);
     }
   }
 
-  incrementHabit(id: string): void {
-    this.habits.update((habits) =>
-      habits.map((h) =>
-        h.id === id
-          ? {
-              ...h,
-              completionsToday: h.completionsToday + 1,
-              totalCompletions: h.totalCompletions + 1,
-              lastCompletedAt: new Date(),
-            }
-          : h
-      )
-    );
+  async removeHabit(id: string): Promise<void> {
+    const numericId = parseInt(id, 10);
+    
+    try {
+      await this.deleteHabitFromDB(numericId);
+      this.habits.update((habits) => habits.filter((h) => h.id !== id));
+      
+      if (this.selectedHabitId() === id) {
+        this.selectedHabitId.set(null);
+      }
+    } catch (e) {
+      console.error('Failed to remove habit:', e);
+    }
   }
 
-  decrementHabit(id: string): void {
-    this.habits.update((habits) =>
-      habits.map((h) =>
-        h.id === id && h.completionsToday > 0
-          ? {
-              ...h,
-              completionsToday: h.completionsToday - 1,
-              totalCompletions: Math.max(0, h.totalCompletions - 1),
-            }
-          : h
-      )
-    );
+  async incrementHabit(id: string): Promise<void> {
+    const numericId = parseInt(id, 10);
+    const habit = this.habits().find((h) => h.id === id);
+    
+    if (!habit) return;
+
+    const updates = {
+      completionsToday: habit.completionsToday + 1,
+      totalCompletions: habit.totalCompletions + 1,
+      lastCompletedAt: Date.now(),
+    };
+
+    try {
+      await this.updateHabitInDB(numericId, updates);
+      this.habits.update((habits) =>
+        habits.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                completionsToday: updates.completionsToday,
+                totalCompletions: updates.totalCompletions,
+                lastCompletedAt: new Date(updates.lastCompletedAt),
+              }
+            : h
+        )
+      );
+    } catch (e) {
+      console.error('Failed to increment habit:', e);
+    }
   }
 
-  resetHabitToday(id: string): void {
-    this.habits.update((habits) =>
-      habits.map((h) =>
-        h.id === id
-          ? {
-              ...h,
-              totalCompletions: h.totalCompletions - h.completionsToday,
-              completionsToday: 0,
-            }
-          : h
-      )
-    );
+  async decrementHabit(id: string): Promise<void> {
+    const numericId = parseInt(id, 10);
+    const habit = this.habits().find((h) => h.id === id);
+    
+    if (!habit || habit.completionsToday === 0) return;
+
+    const updates = {
+      completionsToday: habit.completionsToday - 1,
+      totalCompletions: Math.max(0, habit.totalCompletions - 1),
+    };
+
+    try {
+      await this.updateHabitInDB(numericId, updates);
+      this.habits.update((habits) =>
+        habits.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                completionsToday: updates.completionsToday,
+                totalCompletions: updates.totalCompletions,
+              }
+            : h
+        )
+      );
+    } catch (e) {
+      console.error('Failed to decrement habit:', e);
+    }
   }
 
-  updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'icon' | 'color' | 'dailyGoal'>>): void {
-    this.habits.update((habits) =>
-      habits.map((h) => (h.id === id ? { ...h, ...updates } : h))
-    );
+  async resetHabitToday(id: string): Promise<void> {
+    const numericId = parseInt(id, 10);
+    const habit = this.habits().find((h) => h.id === id);
+    
+    if (!habit) return;
+
+    const updates = {
+      totalCompletions: habit.totalCompletions - habit.completionsToday,
+      completionsToday: 0,
+    };
+
+    try {
+      await this.updateHabitInDB(numericId, updates);
+      this.habits.update((habits) =>
+        habits.map((h) =>
+          h.id === id
+            ? {
+                ...h,
+                totalCompletions: updates.totalCompletions,
+                completionsToday: 0,
+              }
+            : h
+        )
+      );
+    } catch (e) {
+      console.error('Failed to reset habit:', e);
+    }
+  }
+
+  async updateHabit(id: string, updates: Partial<Pick<Habit, 'name' | 'icon' | 'color' | 'dailyGoal'>>): Promise<void> {
+    const numericId = parseInt(id, 10);
+
+    try {
+      await this.updateHabitInDB(numericId, updates);
+      this.habits.update((habits) =>
+        habits.map((h) => (h.id === id ? { ...h, ...updates } : h))
+      );
+    } catch (e) {
+      console.error('Failed to update habit:', e);
+    }
   }
 
   selectHabit(id: string | null): void {

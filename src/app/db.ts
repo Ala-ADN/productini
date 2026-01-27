@@ -9,27 +9,61 @@ export interface Todo {
     priority: Priority;
     createdAt: number;
     dueDate: string;
-    order: number; // Added order field
+    order: number;
+}
+
+export interface HabitHistory {
+    date: string; // ISO date string (YYYY-MM-DD)
+    completions: number;
+    goalMet: boolean;
+}
+
+export interface HabitRecord {
+    id?: number;
+    name: string;
+    icon: string;
+    color: string;
+    dailyGoal: number;
+    completionsToday: number;
+    streak: number;
+    bestStreak: number;
+    totalCompletions: number;
+    createdAt: number; // timestamp
+    lastCompletedAt: number | null; // timestamp
+    history: HabitHistory[];
+    order: number;
+}
+
+export interface HabitMetadata {
+    id: string; // 'habit_metadata' - singleton record
+    lastResetDate: string; // ISO date string (YYYY-MM-DD)
 }
 
 export class AppDB extends Dexie {
     todos!: Table<Todo, number>;
+    habits!: Table<HabitRecord, number>;
+    habitMetadata!: Table<HabitMetadata, string>;
 
     constructor() {
         super('ProdHubDB');
 
-        // Version 2: Added 'order' index
+        // Version 3: Added habits and habitMetadata tables
+        this.version(3).stores({
+            todos: '++id, completed, priority, dueDate, order',
+            habits: '++id, name, createdAt, order',
+            habitMetadata: 'id'
+        });
+
+        // Version 2: Added 'order' index to todos
         this.version(2).stores({
             todos: '++id, completed, priority, dueDate, order'
         }).upgrade(tx => {
-            // Migration: Give existing items a default order
-            // We can just use their ID as order initially
             return tx.table('todos').toCollection().modify(todo => {
-                todo.order = todo.id; // Fallback
+                todo.order = todo.id;
             });
         });
 
-        // Keep version 1 for reference (Dexie requires history)
+        // Version 1 for reference
         this.version(1).stores({
             todos: '++id, completed, priority, dueDate'
         });

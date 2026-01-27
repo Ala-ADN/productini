@@ -1,3 +1,7 @@
+import type { HabitHistory } from '../../db';
+
+export type { HabitHistory };
+
 export interface Habit {
   id: string;
   name: string;
@@ -11,12 +15,6 @@ export interface Habit {
   createdAt: Date;
   lastCompletedAt: Date | null;
   history: HabitHistory[];
-}
-
-export interface HabitHistory {
-  date: string; // ISO date string (YYYY-MM-DD)
-  completions: number;
-  goalMet: boolean;
 }
 
 export interface HabitStats {
