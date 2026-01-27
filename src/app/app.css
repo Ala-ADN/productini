@@ -1,0 +1,40 @@
+:host {
+  display: block;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+}
+
+.dashboard {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.dashboard-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.dashboard-header h1 {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px 0;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.subtitle {
+  font-size: 1.1rem;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+}
+
+.widgets-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+}

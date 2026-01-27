@@ -1,0 +1,330 @@
+<div class="habit-tracker-widget">
+  <!-- Header -->
+  <header class="widget-header">
+    <div class="header-left">
+      <h2>Daily Habit Tracker</h2>
+      <p class="date-display">{{ currentDate() }}</p>
+    </div>
+    <div class="header-actions">
+      <button class="icon-btn" (click)="toggleStats()" [class.active]="showStats()" title="Statistics">
+        📊
+      </button>
+      <button class="icon-btn add-btn" (click)="toggleAddForm()" [class.active]="showAddForm()" title="Add Habit">
+        @if (showAddForm()) { ✕ } @else { + }
+      </button>
+    </div>
+  </header>
+
+  <!-- Overall Progress Bar -->
+  <div class="overall-progress">
+    <div class="progress-header">
+      <span class="progress-label">{{ greeting() }}! Today's Progress</span>
+      <span class="progress-value">{{ todayProgress() }}%</span>
+    </div>
+    <div class="progress-bar-container">
+      <div
+        class="progress-bar-fill"
+        [style.width.%]="todayProgress()"
+        [class.complete]="todayProgress() === 100"
+      ></div>
+    </div>
+  </div>
+
+  <!-- Statistics Panel -->
+  @if (showStats()) {
+    <div class="stats-panel">
+      <h3>📈 Your Statistics</h3>
+      <div class="stats-grid">
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().totalHabits }}</span>
+          <span class="stat-label">Total Habits</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().totalCompletionsToday }}</span>
+          <span class="stat-label">Completions Today</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().totalGoalsMetToday }}/{{ stats().totalHabits }}</span>
+          <span class="stat-label">Goals Met Today</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().overallCompletionRate }}%</span>
+          <span class="stat-label">Completion Rate</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().longestStreak }} 🔥</span>
+          <span class="stat-label">Longest Streak</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">{{ stats().mostProductiveDay }}</span>
+          <span class="stat-label">Best Day</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Add Habit Form -->
+  @if (showAddForm()) {
+    <div class="add-habit-form">
+      <h3>Create New Habit</h3>
+
+      <div class="form-group">
+        <label for="habitName">Habit Name</label>
+        <input
+          id="habitName"
+          type="text"
+          placeholder="e.g., Drink water, Exercise, Read..."
+          [ngModel]="newHabitName()"
+          (ngModelChange)="newHabitName.set($event)"
+          class="form-input"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="habitGoal">Daily Goal</label>
+        <div class="goal-input-wrapper">
+          <button class="goal-btn" (click)="newHabitGoal.set(Math.max(1, newHabitGoal() - 1))">−</button>
+          <input
+            id="habitGoal"
+            type="number"
+            min="1"
+            [ngModel]="newHabitGoal()"
+            (ngModelChange)="newHabitGoal.set($event)"
+            class="form-input goal-input"
+          />
+          <button class="goal-btn" (click)="newHabitGoal.set(newHabitGoal() + 1)">+</button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Choose Icon</label>
+        <div class="icon-picker">
+          @for (icon of availableIcons; track icon) {
+            <button
+              type="button"
+              class="icon-option"
+              [class.selected]="newHabitIcon() === icon"
+              (click)="newHabitIcon.set(icon)"
+            >
+              {{ icon }}
+            </button>
+          }
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>Choose Color</label>
+        <div class="color-picker">
+          @for (color of availableColors; track color) {
+            <button
+              type="button"
+              class="color-option"
+              [style.background]="color"
+              [class.selected]="newHabitColor() === color"
+              (click)="newHabitColor.set(color)"
+            ></button>
+          }
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn btn-secondary" (click)="toggleAddForm()">Cancel</button>
+        <button class="btn btn-primary" (click)="addHabit()" [disabled]="!newHabitName().trim()">
+          Create Habit
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Edit Habit Modal -->
+  @if (showEditForm() && editingHabit()) {
+    <div class="modal-overlay" (click)="cancelEdit()">
+      <div class="modal-content" (click)="$event.stopPropagation()">
+        <h3>Edit Habit</h3>
+
+        <div class="form-group">
+          <label>Habit Name</label>
+          <input
+            type="text"
+            [ngModel]="editingHabit()!.name"
+            (ngModelChange)="updateEditingHabit('name', $event)"
+            class="form-input"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Daily Goal</label>
+          <input
+            type="number"
+            min="1"
+            [ngModel]="editingHabit()!.dailyGoal"
+            (ngModelChange)="updateEditingHabit('dailyGoal', $event)"
+            class="form-input"
+          />
+        </div>
+
+        <div class="form-group">
+          <label>Icon</label>
+          <div class="icon-picker">
+            @for (icon of availableIcons; track icon) {
+              <button
+                type="button"
+                class="icon-option"
+                [class.selected]="editingHabit()!.icon === icon"
+                (click)="updateEditingHabit('icon', icon)"
+              >
+                {{ icon }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Color</label>
+          <div class="color-picker">
+            @for (color of availableColors; track color) {
+              <button
+                type="button"
+                class="color-option"
+                [style.background]="color"
+                [class.selected]="editingHabit()!.color === color"
+                (click)="updateEditingHabit('color', color)"
+              ></button>
+            }
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button class="btn btn-secondary" (click)="cancelEdit()">Cancel</button>
+          <button class="btn btn-primary" (click)="saveEdit()">Save Changes</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- Habits List -->
+  <div class="habits-list">
+    @if (habits().length === 0) {
+      <div class="empty-state">
+        <span class="empty-icon">🎯</span>
+        <h3>No habits yet!</h3>
+        <p>Start building better habits by adding your first one.</p>
+        <button class="btn btn-primary" (click)="toggleAddForm()">+ Add Your First Habit</button>
+      </div>
+    } @else {
+      @for (habit of habits(); track habit.id) {
+        <div
+          class="habit-card"
+          [style.--habit-color]="habit.color"
+          [class.selected]="selectedHabit()?.id === habit.id"
+          [class.goal-met]="isGoalMet(habit)"
+          (click)="selectHabit(habit)"
+        >
+          <div class="habit-main">
+            <div class="habit-icon" [style.background]="habit.color">
+              {{ habit.icon }}
+            </div>
+
+            <div class="habit-info">
+              <div class="habit-name-row">
+                <span class="habit-name">{{ habit.name }}</span>
+                @if (habit.streak > 0) {
+                  <span class="streak-badge">
+                    {{ habit.streak }} {{ getStreakEmoji(habit.streak) }}
+                  </span>
+                }
+              </div>
+              <div class="habit-progress">
+                <div class="progress-bar-mini">
+                  <div
+                    class="progress-fill-mini"
+                    [style.width.%]="getProgressPercentage(habit)"
+                    [style.background]="habit.color"
+                  ></div>
+                </div>
+                <span class="progress-text">
+                  {{ habit.completionsToday }} / {{ habit.dailyGoal }}
+                </span>
+              </div>
+            </div>
+
+            <div class="habit-actions">
+              <button
+                class="action-btn decrement"
+                (click)="decrementHabit(habit.id, $event)"
+                [disabled]="habit.completionsToday === 0"
+                title="Undo"
+              >
+                −
+              </button>
+              <button
+                class="action-btn increment"
+                [style.background]="habit.color"
+                (click)="incrementHabit(habit.id, $event)"
+                title="Complete"
+              >
+                @if (isGoalMet(habit)) { ✓ } @else { + }
+              </button>
+            </div>
+          </div>
+
+          <!-- Expanded Details -->
+          @if (selectedHabit()?.id === habit.id) {
+            <div class="habit-details">
+              <div class="detail-row">
+                <span class="detail-label">{{ getMotivationalMessage(habit) }}</span>
+              </div>
+
+              <!-- Weekly History -->
+              <div class="weekly-history">
+                <span class="history-label">This Week:</span>
+                <div class="history-dots">
+                  @for (day of getHistoryDays(habit); track day.date) {
+                    <div class="history-day" [class.completed]="day.completed" [title]="day.date + ': ' + day.completions + ' completions'">
+                      <span class="day-label">{{ day.date }}</span>
+                      <span class="day-dot" [style.background]="day.completed ? habit.color : ''"></span>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <!-- Stats Row -->
+              <div class="habit-stats-row">
+                <div class="mini-stat">
+                  <span class="mini-stat-value">{{ habit.totalCompletions }}</span>
+                  <span class="mini-stat-label">Total</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-stat-value">{{ habit.streak }}</span>
+                  <span class="mini-stat-label">Streak</span>
+                </div>
+                <div class="mini-stat">
+                  <span class="mini-stat-value">{{ habit.bestStreak }}</span>
+                  <span class="mini-stat-label">Best</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="detail-actions">
+                <button class="btn btn-small btn-ghost" (click)="startEdit(habit, $event)">
+                  ✏️ Edit
+                </button>
+                <button class="btn btn-small btn-ghost" (click)="resetHabit(habit.id, $event)">
+                  ↺ Reset Today
+                </button>
+                <button class="btn btn-small btn-danger" (click)="removeHabit(habit.id, $event)">
+                  🗑️ Delete
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    }
+  </div>
+
+  <!-- Footer -->
+  <footer class="widget-footer">
+    <p>💡 Tip: Click on a habit to see details and history</p>
+  </footer>
+</div>
