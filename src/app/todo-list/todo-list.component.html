@@ -1,0 +1,45 @@
+<div class="todo-container">
+  <div class="todo-header">
+    <h1>✨ My Todo List</h1>
+    <p class="stats">{{ completedCount }} of {{ totalCount }} completed</p>
+  </div>
+
+  <div class="todo-input-section">
+    <input
+      type="text"
+      [(ngModel)]="newTodoText"
+      (keyup.enter)="addTodo()"
+      placeholder="What needs to be done?"
+      class="todo-input"
+      aria-label="New todo text"
+    />
+    <button (click)="addTodo()" class="add-button" aria-label="Add todo">
+      <span class="add-icon">+</span>
+      Add
+    </button>
+  </div>
+
+  <div class="todo-list">
+    @if (todos().length === 0) {
+      <div class="empty-state">
+        <div class="empty-icon">📝</div>
+        <p>No todos yet. Add one to get started!</p>
+      </div>
+    }
+
+    @for (todo of todos(); track todo.id) {
+      <div class="todo-item" [class.completed]="todo.completed">
+        <label class="todo-checkbox-wrapper">
+          <input
+            type="checkbox"
+            [checked]="todo.completed"
+            (change)="toggleTodo(todo.id)"
+            [attr.aria-label]="'Mark ' + todo.text + ' as ' + (todo.completed ? 'incomplete' : 'complete')"
+          />
+          <span class="checkmark"></span>
+        </label>
+        <span class="todo-text">{{ todo.text }}</span>
+      </div>
+    }
+  </div>
+</div>
