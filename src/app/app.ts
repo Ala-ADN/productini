@@ -1,9 +1,9 @@
 import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { ProgressContainerComponent } from './progress-goals';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet],
+  imports: [ProgressContainerComponent],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
