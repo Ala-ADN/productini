@@ -4,6 +4,8 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "server": "tsx server/index.ts",
+    "dev": "concurrently \"pnpm start\" \"pnpm server\"",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test"
@@ -21,7 +23,7 @@
     ]
   },
   "private": true,
-  "packageManager": "npm@10.9.2",
+  "packageManager": "pnpm@9.15.4",
   "dependencies": {
     "@angular/cdk": "^21.1.2",
     "@angular/common": "^21.1.0",
@@ -31,6 +33,11 @@
     "@angular/platform-browser": "^21.1.0",
     "@angular/router": "^21.1.0",
     "dexie": "^4.3.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.2.3",
+    "express": "^5.2.1",
+    "mongodb": "^7.0.0",
+    "mongoose": "^9.1.5",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -39,9 +46,13 @@
     "@angular/build": "^21.1.2",
     "@angular/cli": "^21.1.2",
     "@angular/compiler-cli": "^21.1.0",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "concurrently": "^9.2.1",
     "@types/jasmine": "^6.0.0",
     "jasmine-core": "^6.0.1",
     "jsdom": "^27.1.0",
+    "tsx": "^4.21.0",
     "karma": "^6.4.4",
     "karma-chrome-launcher": "^3.2.0",
     "karma-coverage": "^2.2.1",

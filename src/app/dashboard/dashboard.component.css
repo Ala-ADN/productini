@@ -177,15 +177,26 @@
 }
 
 /* Widgets */
-.widgets-row {
+.widgets-container {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1fr 1fr;
     gap: 24px;
     align-items: start;
 }
 
+.left-column {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.right-column {
+    display: flex;
+    flex-direction: column;
+}
+
 @media (max-width: 900px) {
-    .widgets-row {
+    .widgets-container {
         grid-template-columns: 1fr;
     }
 }
