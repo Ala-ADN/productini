@@ -2,6 +2,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export type Priority = 'high' | 'medium' | 'low';
 
@@ -11,7 +12,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     createdAt: number;
-    dueDate: string; // Now required in interface implies it's always set on creation, though can be string
+    dueDate: string;
 }
 
 type FilterType = 'all' | 'active' | 'completed';
@@ -19,7 +20,7 @@ type FilterType = 'all' | 'active' | 'completed';
 @Component({
     selector: 'app-todo-list',
     standalone: true,
-    imports: [FormsModule, CommonModule, RouterLink],
+    imports: [FormsModule, CommonModule, RouterLink, DragDropModule],
     templateUrl: './todo-list.component.html',
     styleUrl: './todo-list.component.css',
 })
@@ -57,33 +58,42 @@ export class TodoListComponent {
         });
     }
 
+    // Drag and Drop Handler
+    drop(event: CdkDragDrop<Todo[]>) {
+        // We only allow reordering when showing 'all' and no search query
+        // Otherwise the visual order doesn't match the actual list
+        if (this.currentFilter() !== 'all' || this.searchQuery()) {
+            return;
+        }
+
+        this.todos.update(currentTodos => {
+            const newTodos = [...currentTodos];
+            moveItemInArray(newTodos, event.previousIndex, event.currentIndex);
+            return newTodos;
+        });
+    }
+
     addTodo() {
         const text = this.newTodoText().trim();
         const dateStr = this.newTodoDate();
 
-        // Reset error
         this.errorMsg.set('');
 
-        // 1. Validate Name
         if (!text) {
             this.errorMsg.set('⚠️ Please enter a task name.');
             return;
         }
-
-        // 2. Validate Date
         if (!dateStr) {
             this.errorMsg.set('⚠️ Please select a due date.');
             return;
         }
 
-        // 3. Validate Year format
         const year = new Date(dateStr).getFullYear();
         if (year > 9999 || dateStr.length > 10) {
             this.errorMsg.set('⚠️ Invalid year. Please use 4 digits (e.g., 2026).');
             return;
         }
 
-        // Proceed if valid
         this.todos.update((todos) => [
             {
                 id: Date.now(),
@@ -96,7 +106,6 @@ export class TodoListComponent {
             ...todos,
         ]);
 
-        // Reset inputs
         this.newTodoText.set('');
         this.newTodoPriority.set('medium');
         this.newTodoDate.set('');
@@ -116,7 +125,6 @@ export class TodoListComponent {
         this.todos.update((todos) => todos.filter((t) => !t.completed));
     }
 
-    // Editing
     startEdit(id: number) {
         if (!this.todos().find(t => t.id === id)?.completed) {
             this.editingId.set(id);
@@ -138,11 +146,9 @@ export class TodoListComponent {
         this.editingId.set(null);
     }
 
-    // Setters
     setFilter(filter: FilterType) { this.currentFilter.set(filter); }
     setPriority(priority: Priority) { this.newTodoPriority.set(priority); }
 
-    // Search & Filter Logic
     filteredTodos = computed(() => {
         const filter = this.currentFilter();
         const query = this.searchQuery().toLowerCase();
@@ -162,7 +168,6 @@ export class TodoListComponent {
         }
     });
 
-    // Helpers for Display
     getDueDateLabel(dateStr: string | null): string {
         if (!dateStr) return '';
         const date = new Date(dateStr);

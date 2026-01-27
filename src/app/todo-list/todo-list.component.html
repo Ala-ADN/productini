@@ -67,7 +67,8 @@
         }
     </div>
 
-    <div class="todo-list">
+    <div class="todo-list" cdkDropList (cdkDropListDropped)="drop($event)">
+
         @if (filteredTodos().length === 0) {
         <div class="empty-state">
             <div class="empty-icon">
@@ -80,7 +81,14 @@
         }
 
         @for (todo of filteredTodos(); track todo.id) {
-        <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'">
+        <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'"
+            cdkDrag [cdkDragDisabled]="currentFilter() !== 'all' || !!searchQuery()">
+
+            <div class="drag-handle" cdkDragHandle
+                [style.opacity]="(currentFilter() !== 'all' || !!searchQuery()) ? '0.3' : '1'"
+                [style.cursor]="(currentFilter() !== 'all' || !!searchQuery()) ? 'default' : 'grab'">
+                ⋮⋮
+            </div>
 
             <label class="todo-checkbox-wrapper">
                 <input type="checkbox" [checked]="todo.completed" (change)="toggleTodo(todo.id)" />
