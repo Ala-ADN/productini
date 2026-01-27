@@ -13,4 +13,8 @@ export const routes: Routes = [
         path: 'progress',
         loadComponent: () => import('./progress-goals/feature/progress-container/progress-container.component').then(m => m.ProgressContainerComponent)
     },
+    {
+        path: 'quotes',
+        loadComponent: () => import('./quote-generator/quote-generator.component').then(m => m.QuoteGeneratorComponent)
+    },
 ];
