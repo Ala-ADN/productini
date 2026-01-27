@@ -47,22 +47,43 @@ export interface Quote {
     createdAt: number;
     isFavorite: boolean;
 }
+export interface User {
+    id?: number;
+    email: string;
+    username: string;
+    passwordHash: string; // In production, hash passwords!
+    createdAt: number;
+    lastLoginAt: number | null;
+}
+
+export interface Session {
+    id: string; // 'current_session' - singleton
+    userId: number;
+    email: string;
+    username: string;
+    loginAt: number;
+}
 
 export class AppDB extends Dexie {
     todos!: Table<Todo, number>;
     habits!: Table<HabitRecord, number>;
     habitMetadata!: Table<HabitMetadata, string>;
     quotes!: Table<Quote, number>;
+    users!: Table<User, number>;
+    session!: Table<Session, string>;
 
     constructor() {
         super('ProdHubDB');
 
         // Version 4: Added quotes table
+        // Version 4: Added users and session tables for authentication
         this.version(4).stores({
             todos: '++id, completed, priority, dueDate, order',
             habits: '++id, name, createdAt, order',
             habitMetadata: 'id',
-            quotes: '++id, category, isFavorite, createdAt'
+            quotes: '++id, category, isFavorite, createdAt',
+            users: '++id, email, username',
+            session: 'id'
         });
 
         // Version 3: Added habits and habitMetadata tables

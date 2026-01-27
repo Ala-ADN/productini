@@ -1,5 +1,7 @@
-import { Component } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
+import { AuthService } from '../auth/auth.service';
 import { HabitCounter } from '../components/habit-counter/habit-counter';
 import { TodoListComponent } from '../todo-list/todo-list.component';
 import { ProgressContainerComponent } from '../progress-goals/feature/progress-container/progress-container.component';
@@ -13,6 +15,8 @@ import { QuoteGeneratorComponent } from '../quote-generator/quote-generator.comp
     styleUrl: './dashboard.component.css'
 })
 export class DashboardComponent {
+    protected readonly authService = inject(AuthService);
+    
     // Mock data for the dashboard
     greeting = 'Good ' + this.getTimeOfDay();
 
@@ -55,6 +59,11 @@ export class DashboardComponent {
             color: 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)'
         }
     ];
+   
+
+    async logout() {
+        await this.authService.logout();
+    }
 
     getTimeOfDay() {
         const hour = new Date().getHours();

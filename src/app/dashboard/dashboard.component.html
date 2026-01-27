@@ -3,10 +3,13 @@
         <div class="user-welcome">
             <span class="avatar">👤</span>
             <div>
-                <h1>{{ greeting }}, User</h1>
+                <h1>{{ greeting }}, {{ authService.user()?.username || 'User' }}</h1>
                 <p class="date">{{ getTodayDate() }}</p>
             </div>
         </div>
+        <button class="logout-btn" (click)="logout()" title="Logout">
+            🚪 Logout
+        </button>
     </header>
 
     <div class="quote-card">
