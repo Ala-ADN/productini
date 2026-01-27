@@ -1,0 +1,127 @@
+<div class="todo-container">
+    <div class="header-nav">
+        <a routerLink="/" class="back-link">← Dashboard</a>
+    </div>
+
+    <div class="todo-header">
+        <h1>✨ My Planner</h1>
+        <div class="header-controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
+                    placeholder="Search items..." />
+            </div>
+            <p class="stats">{{ completedCount() }} / {{ totalCount() }} done</p>
+        </div>
+    </div>
+
+    <div class="todo-input-section">
+        <div class="priority-selector">
+            <button class="priority-dot high" [class.active]="newTodoPriority() === 'high'"
+                (click)="setPriority('high')" title="High Priority"></button>
+            <button class="priority-dot medium" [class.active]="newTodoPriority() === 'medium'"
+                (click)="setPriority('medium')" title="Medium Priority"></button>
+            <button class="priority-dot low" [class.active]="newTodoPriority() === 'low'" (click)="setPriority('low')"
+                title="Low Priority"></button>
+        </div>
+
+        <div class="input-container">
+            <div class="input-group">
+                <input type="text" [ngModel]="newTodoText()" (ngModelChange)="newTodoText.set($event)"
+                    (keyup.enter)="addTodo()" placeholder="Add a new task..." class="todo-input-text"
+                    aria-label="New todo text" />
+                <input type="date" [ngModel]="newTodoDate()" (ngModelChange)="newTodoDate.set($event)"
+                    class="todo-input-date" aria-label="Due date" max="9999-12-31" />
+            </div>
+
+            @if (errorMsg()) {
+            <div class="error-message">
+                {{ errorMsg() }}
+            </div>
+            }
+        </div>
+
+        <button (click)="addTodo()" class="add-button" aria-label="Add todo">
+            <span class="add-icon">+</span>
+        </button>
+    </div>
+
+    <div class="controls-row">
+        <div class="filter-section">
+            <button [class.active]="currentFilter() === 'all'" (click)="setFilter('all')" class="filter-btn">
+                All
+            </button>
+            <button [class.active]="currentFilter() === 'active'" (click)="setFilter('active')" class="filter-btn">
+                Ative
+            </button>
+            <button [class.active]="currentFilter() === 'completed'" (click)="setFilter('completed')"
+                class="filter-btn">
+                Completed
+            </button>
+        </div>
+
+        @if (hasCompleted()) {
+        <button class="clear-btn" (click)="clearCompleted()">
+            Clear Done
+        </button>
+        }
+    </div>
+
+    <div class="todo-list" cdkDropList (cdkDropListDropped)="drop($event)">
+
+        @if (filteredTodos().length === 0) {
+        <div class="empty-state">
+            <div class="empty-icon">
+                {{ searchQuery() ? '🔍' : '📝' }}
+            </div>
+            <p>
+                {{ searchQuery() ? 'No matches found.' : 'No tasks here. Add one!' }}
+            </p>
+        </div>
+        }
+
+        @for (todo of filteredTodos(); track todo.id) {
+        <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'"
+            cdkDrag [cdkDragDisabled]="currentFilter() !== 'all' || !!searchQuery()">
+
+            <div class="drag-handle" cdkDragHandle
+                [style.opacity]="(currentFilter() !== 'all' || !!searchQuery()) ? '0.3' : '1'"
+                [style.cursor]="(currentFilter() !== 'all' || !!searchQuery()) ? 'default' : 'grab'">
+                ⋮⋮
+            </div>
+
+            <label class="todo-checkbox-wrapper">
+                <input type="checkbox" [checked]="todo.completed" (change)="toggleTodo(todo.id)" />
+                <span class="checkmark" [class.p-high]="todo.priority === 'high'"
+                    [class.p-med]="todo.priority === 'medium'"></span>
+            </label>
+
+            <div class="todo-content">
+                @if (editingId() === todo.id) {
+                <input type="text" [value]="todo.text" (blur)="saveEdit(todo.id, $event)"
+                    (keyup.enter)="saveEdit(todo.id, $event)" (keyup.escape)="cancelEdit()" class="edit-input"
+                    autoFocus />
+                } @else {
+                <div class="todo-main-row">
+                    <span class="todo-text" (dblclick)="startEdit(todo.id)" title="Double click to edit">
+                        {{ todo.text }}
+                    </span>
+                </div>
+                <div class="todo-meta-row">
+                    <span class="priority-badge" [ngClass]="todo.priority">
+                        {{ todo.priority }}
+                    </span>
+                    @if (todo.dueDate) {
+                    <span class="date-badge" [class.overdue]="isOverdue(todo.dueDate) && !todo.completed">
+                        📅 {{ getDueDateLabel(todo.dueDate) }}
+                    </span>
+                    }
+                </div>
+                }
+            </div>
+
+            <button (click)="deleteTodo(todo.id)" class="delete-btn">×</button>
+        </div>
+        }
+    </div>
+</div>
