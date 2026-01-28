@@ -1,0 +1,144 @@
+<div class="quote-widget">
+  <!-- Stats Bar -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span class="stat-label">Clicks:</span>
+      <span class="stat-value">{{ clickCount() }}</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Quote:</span>
+      <span class="stat-value">{{ currentQuoteIndex() + 1 }}/{{ quoteCount() }}</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="widget-header">
+    <h2>💡 Daily Motivation</h2>
+    <div class="header-controls">
+      <button 
+        class="icon-btn" 
+        (click)="toggleAutoPlay()"
+        [class.active]="isAutoPlay()"
+        title="Toggle Auto-play">
+        {{ isAutoPlay() ? '⏸️' : '▶️' }}
+      </button>
+      <button 
+        class="icon-btn" 
+        (click)="toggleFavorite()"
+        [class.favorite]="isFavorite()"
+        title="Toggle Favorite">
+        {{ isFavorite() ? '❤️' : '🤍' }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Category Filter -->
+  <div class="category-filter">
+    @for (category of categories(); track category) {
+      <button 
+        class="category-btn"
+        [class.active]="selectedCategory() === category"
+        (click)="selectCategory(category)">
+        {{ category }}
+      </button>
+    }
+  </div>
+
+  <!-- Progress Bar -->
+  <div class="progress-bar-container">
+    <div class="progress-bar" [style.width.%]="progressPercentage()"></div>
+  </div>
+  
+  <!-- Quote Container -->
+  <div class="quote-container">
+    <div class="quote-icon">❝</div>
+    <p class="quote-text">{{ currentQuote().text }}</p>
+    <div class="quote-meta">
+      <span class="quote-author">— {{ currentQuote().author }}</span>
+      <span class="quote-category">#{{ currentQuote().category }}</span>
+    </div>
+  </div>
+
+  <!-- Navigation Controls -->
+  <div class="nav-controls">
+    @if (selectedCategory() === 'All') {
+      <button class="nav-btn" (click)="previousQuote()" title="Previous Quote">
+        ◀️
+      </button>
+    }
+    <button class="generate-btn" (click)="generateNewQuote()">
+      🔄 Random Quote
+    </button>
+    @if (selectedCategory() === 'All') {
+      <button class="nav-btn" (click)="nextQuote()" title="Next Quote">
+        ▶️
+      </button>
+    }
+  </div>
+
+  <!-- Action Buttons -->
+  <div class="action-buttons">
+    <button class="action-btn" (click)="copyToClipboard()" title="Copy to Clipboard">
+      📋 Copy
+    </button>
+    <button class="action-btn social-btn facebook-btn" (click)="shareOnFacebook()" title="Share on Facebook">
+      📘 Facebook
+    </button>
+    <button class="action-btn social-btn twitter-btn" (click)="shareOnTwitter()" title="Share on Twitter">
+      🐦 Twitter
+    </button>
+    <button class="action-btn" (click)="toggleAddQuoteForm()" title="Add Your Own Quote">
+      ➕ Add Quote
+    </button>
+  </div>
+
+  <!-- Add Quote Form -->
+  @if (showAddQuoteForm()) {
+    <div class="add-quote-form">
+      <h3>✨ Add Your Own Quote</h3>
+      <div class="form-group">
+        <label>Quote Text *</label>
+        <textarea 
+          [value]="newQuoteText()"
+          (input)="newQuoteText.set($any($event.target).value)"
+          placeholder="Enter your inspiring quote..."
+          rows="3"></textarea>
+      </div>
+      <div class="form-group">
+        <label>Author</label>
+        <input 
+          type="text"
+          [value]="newQuoteAuthor()"
+          (input)="newQuoteAuthor.set($any($event.target).value)"
+          placeholder="Author name (optional)">
+      </div>
+      <div class="form-group">
+        <label>Category</label>
+        <input 
+          type="text"
+          [value]="newQuoteCategory()"
+          (input)="newQuoteCategory.set($any($event.target).value)"
+          placeholder="e.g., Motivation, Success (optional)">
+      </div>
+      <div class="form-buttons">
+        <button class="form-btn cancel-btn" (click)="toggleAddQuoteForm()">
+          Cancel
+        </button>
+        <button 
+          class="form-btn submit-btn" 
+          (click)="addCustomQuote()"
+          [disabled]="!newQuoteText().trim()">
+          Add Quote
+        </button>
+      </div>
+    </div>
+  }
+
+  <!-- Favorites Count -->
+  @if (favoriteQuotes().length > 0) {
+    <div class="favorites-count">
+      ⭐ {{ favoriteQuotes().length }} favorite{{ favoriteQuotes().length !== 1 ? 's' : '' }}
+    </div>
+  }
+</div>
+
