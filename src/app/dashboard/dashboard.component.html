@@ -16,11 +16,16 @@
 
     <h2 class="section-title">Your Productivity Widgets</h2>
 
-    <div class="widgets-row">
-        <!-- Habit Counter Widget -->
-        <app-habit-counter />
+    <div class="widgets-container">
+        <!-- Left Column: Tasks and Habits -->
+        <div class="left-column">
+            <app-todo-list />
+            <app-habit-counter />
+        </div>
 
-        <!-- Task Planner Widget -->
-        <app-todo-list />
+        <!-- Right Column: Progress -->
+        <div class="right-column">
+            <app-progress-container />
+        </div>
     </div>
 </div>

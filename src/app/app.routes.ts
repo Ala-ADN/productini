@@ -9,4 +9,8 @@ export const routes: Routes = [
         path: 'todo',
         loadComponent: () => import('./todo-list/todo-list.component').then(m => m.TodoListComponent)
     },
+    {
+        path: 'progress',
+        loadComponent: () => import('./progress-goals/feature/progress-container/progress-container.component').then(m => m.ProgressContainerComponent)
+    },
 ];
