@@ -1,0 +1,42 @@
+<div class="pomo-card" [class.active]="isActive()" [class.break-mode]="mode() === 'BREAK'">
+  <div class="header">
+    <span class="badge">{{ MODES[mode()].label }}</span>
+    <p class="task-context">
+      Working on: <strong>{{ currentTask }}</strong>
+    </p>
+  </div>
+
+  <div class="timer-circle">
+    <svg viewBox="0 0 36 36" class="circular-chart">
+      <path
+        class="circle-bg"
+        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+      />
+      <path
+        class="circle"
+        [attr.stroke-dasharray]="progress() + ', 100'"
+        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+      />
+    </svg>
+    <div class="time-text">{{ formattedTime() }}</div>
+  </div>
+
+  <div class="controls">
+    <button (click)="toggleTimer()" class="btn-primary">
+      {{ isActive() ? 'Pause' : 'Start' }}
+    </button>
+    <button (click)="reset()" class="btn-secondary">Reset</button>
+    <div class="mode-switch">
+      <button (click)="switchMode('WORK')" [class.active-mode]="mode() === 'WORK'" class="mode-btn">
+        Focus
+      </button>
+      <button
+        (click)="switchMode('BREAK')"
+        [class.active-mode]="mode() === 'BREAK'"
+        class="mode-btn"
+      >
+        Break
+      </button>
+    </div>
+  </div>
+</div>

@@ -6,7 +6,7 @@ import { TodoListComponent } from './todo-list/todo-list.component';
   selector: 'app-root',
   imports: [RouterOutlet, TodoListComponent],
   templateUrl: './app.html',
-  styleUrl: './app.css'
+  styleUrl: './app.css',
 })
 export class App {
   protected readonly title = signal('angular-app');
