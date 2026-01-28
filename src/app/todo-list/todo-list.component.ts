@@ -1,19 +1,12 @@
-import { Component, computed, effect, signal } from '@angular/core';
+import { Component, computed, effect, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-
-export type Priority = 'high' | 'medium' | 'low';
-
-export interface Todo {
-    id: number;
-    text: string;
-    completed: boolean;
-    priority: Priority;
-    createdAt: number;
-    dueDate: string;
-}
+import { toSignal } from '@angular/core/rxjs-interop';
+import { liveQuery } from 'dexie';
+import { Observable } from 'rxjs';
+import { db, Priority, Todo } from '../db';
 
 type FilterType = 'all' | 'active' | 'completed';
 
@@ -25,7 +18,10 @@ type FilterType = 'all' | 'active' | 'completed';
     styleUrl: './todo-list.component.css',
 })
 export class TodoListComponent {
-    todos = signal<Todo[]>([]);
+    // Database Live Query -> Signal
+    // Sort by 'order' index to maintain user's manual sorting
+    todos$ = liveQuery(() => db.todos.orderBy('order').toArray()) as any as Observable<Todo[]>;
+    todos = toSignal(this.todos$, { initialValue: [] as Todo[] });
 
     // Inputs
     newTodoText = signal('');
@@ -38,42 +34,33 @@ export class TodoListComponent {
     currentFilter = signal<FilterType>('all');
     editingId = signal<number | null>(null);
 
-    constructor() {
-        const saved = localStorage.getItem('angular-todos');
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved);
-                this.todos.set(parsed.map((t: any) => ({
-                    ...t,
-                    priority: t.priority || 'medium',
-                    dueDate: t.dueDate || ''
-                })));
-            } catch (e) {
-                console.error('Failed to load todos', e);
-            }
-        }
+    constructor() { }
 
-        effect(() => {
-            localStorage.setItem('angular-todos', JSON.stringify(this.todos()));
-        });
-    }
-
-    // Drag and Drop Handler
-    drop(event: CdkDragDrop<Todo[]>) {
-        // We only allow reordering when showing 'all' and no search query
-        // Otherwise the visual order doesn't match the actual list
+    async drop(event: CdkDragDrop<Todo[]>) {
+        // Only allow reordering when showing 'all' and no search query
         if (this.currentFilter() !== 'all' || this.searchQuery()) {
             return;
         }
 
-        this.todos.update(currentTodos => {
-            const newTodos = [...currentTodos];
-            moveItemInArray(newTodos, event.previousIndex, event.currentIndex);
-            return newTodos;
+        const currentTodos = this.todos() || [];
+        if (!currentTodos.length) return;
+
+        // 1. Move locally to calculate new order
+        const sortedTodos = [...currentTodos]; // Create mutable copy
+        moveItemInArray(sortedTodos, event.previousIndex, event.currentIndex);
+
+        // 2. Persist new order to DB
+        await db.transaction('rw', db.todos, async () => {
+            for (let i = 0; i < sortedTodos.length; i++) {
+                const todo = sortedTodos[i];
+                if (todo.id && todo.order !== i) {
+                    await db.todos.update(todo.id, { order: i });
+                }
+            }
         });
     }
 
-    addTodo() {
+    async addTodo() {
         const text = this.newTodoText().trim();
         const dateStr = this.newTodoDate();
 
@@ -94,50 +81,51 @@ export class TodoListComponent {
             return;
         }
 
-        this.todos.update((todos) => [
-            {
-                id: Date.now(),
-                text,
-                completed: false,
-                priority: this.newTodoPriority(),
-                createdAt: Date.now(),
-                dueDate: dateStr,
-            },
-            ...todos,
-        ]);
+        const firstItem = (await db.todos.orderBy('order').first());
+        const newOrder = firstItem ? firstItem.order - 1 : 0;
+
+        await db.todos.add({
+            text,
+            completed: false,
+            priority: this.newTodoPriority(),
+            createdAt: Date.now(),
+            dueDate: dateStr,
+            order: newOrder
+        });
 
         this.newTodoText.set('');
         this.newTodoPriority.set('medium');
         this.newTodoDate.set('');
     }
 
-    toggleTodo(id: number) {
-        this.todos.update((todos) =>
-            todos.map((todo) => (todo.id === id ? { ...todo, completed: !todo.completed } : todo))
-        );
-    }
-
-    deleteTodo(id: number) {
-        this.todos.update((todos) => todos.filter((t) => t.id !== id));
-    }
-
-    clearCompleted() {
-        this.todos.update((todos) => todos.filter((t) => !t.completed));
-    }
-
-    startEdit(id: number) {
-        if (!this.todos().find(t => t.id === id)?.completed) {
-            this.editingId.set(id);
+    async toggleTodo(id: number | undefined) {
+        if (!id) return;
+        const todo = await db.todos.get(id);
+        if (todo) {
+            await db.todos.update(id, { completed: !todo.completed });
         }
     }
 
-    saveEdit(id: number, event: Event) {
+    async deleteTodo(id: number | undefined) {
+        if (id) await db.todos.delete(id);
+    }
+
+    async clearCompleted() {
+        // Use filter instead of where().equals(boolean) to avoid TS IndexableType errors
+        const completed = await db.todos.filter(t => t.completed).primaryKeys();
+        await db.todos.bulkDelete(completed);
+    }
+
+    startEdit(id: number | undefined) {
+        if (id) this.editingId.set(id);
+    }
+
+    async saveEdit(id: number | undefined, event: Event) {
+        if (!id) return;
         const input = event.target as HTMLInputElement;
         const newText = input.value.trim();
         if (newText) {
-            this.todos.update(todos =>
-                todos.map(t => t.id === id ? { ...t, text: newText } : t)
-            );
+            await db.todos.update(id, { text: newText });
         }
         this.editingId.set(null);
     }
@@ -154,15 +142,18 @@ export class TodoListComponent {
         const query = this.searchQuery().toLowerCase();
         let todos = this.todos();
 
+        // Safety check if todos is somehow not array yet (should be covered by initialValue)
+        if (!todos) return [];
+
         if (query) {
-            todos = todos.filter(t => t.text.toLowerCase().includes(query));
+            todos = todos.filter((t: Todo) => t.text.toLowerCase().includes(query));
         }
 
         switch (filter) {
             case 'active':
-                return todos.filter(t => !t.completed);
+                return todos.filter((t: Todo) => !t.completed);
             case 'completed':
-                return todos.filter(t => t.completed);
+                return todos.filter((t: Todo) => t.completed);
             default:
                 return todos;
         }
@@ -195,7 +186,7 @@ export class TodoListComponent {
         return new Date(dateStr) < now;
     }
 
-    completedCount = computed(() => this.todos().filter((t) => t.completed).length);
-    totalCount = computed(() => this.todos().length);
-    hasCompleted = computed(() => this.todos().some(t => t.completed));
+    completedCount = computed(() => (this.todos() || []).filter((t: Todo) => t.completed).length);
+    totalCount = computed(() => (this.todos() || []).length);
+    hasCompleted = computed(() => (this.todos() || []).some((t: Todo) => t.completed));
 }
