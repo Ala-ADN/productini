@@ -10,6 +10,7 @@ import { Milestone } from '../../models/goal.interface';
  * MilestoneListComponent - Presentational (Dumb) Component
  * 
  * Displays a list of milestones with their completion status.
+ * Uses signal inputs for reactive updates.
  * Uses OnPush change detection for performance.
  * 
  * Inputs:

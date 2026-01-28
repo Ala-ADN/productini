@@ -11,11 +11,15 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { DecimalPipe } from '@angular/common';
 
 import { ProgressService } from '../../data-access/progress.service';
+import { PlanService } from '../../data-access/plan.service';
 import { ProgressBarComponent } from '../../ui/progress-bar/progress-bar.component';
 import { GoalInputComponent } from '../../ui/goal-input/goal-input.component';
 import { MilestoneListComponent } from '../../ui/milestone-list/milestone-list.component';
+import { PlanSelectorComponent } from '../../ui/plan-selector/plan-selector.component';
+import { TaskItemComponent } from '../../ui/task-item/task-item.component';
+import { PlanCreatorComponent } from '../../ui/plan-creator/plan-creator.component';
 import { GoalStatus } from '../../models/status.enum';
-import { PercentagePipe } from '../../utils/percentage.pipe';
+import { CreatePlanDto } from '../../models/goal.interface';
 
 /**
  * ProgressContainerComponent - Smart (Container) Component
@@ -33,102 +37,155 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
   imports: [
     DecimalPipe,
     ProgressBarComponent,
-    GoalInputComponent,
-    MilestoneListComponent,
-    PercentagePipe
+    PlanSelectorComponent,
+    TaskItemComponent,
+    PlanCreatorComponent
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="progress-widget">
-      <div class="widget-header">
-        <h2 class="widget-title">{{ goal()?.title || 'Progress Tracker' }}</h2>
-        <span class="status-badge">{{ percentage() === 0 ? 'Not Started' : percentage() >= 100 ? 'Complete!' : 'In Progress' }}</span>
-      </div>
-      
-      @if (goal()?.description) {
-        <p class="widget-description">{{ goal()?.description }}</p>
+    <div class="dashboard-container">
+      <!-- Sidebar: Plan Selector -->
+      <aside class="sidebar">
+        <app-plan-selector
+          [plans]="planService.plans()"
+          [activePlanId]="planService.activePlanId()"
+          (selectPlan)="onSelectPlan($event)"
+          (createPlan)="onCreatePlan()"
+        />
+      </aside>
+
+      <!-- Main Content: Active Plan Details -->
+      <main class="main-content">
+        @if (planService.activePlan(); as plan) {
+          <div class="plan-details">
+            <!-- Header -->
+            <header class="plan-header">
+              <div class="header-content">
+                <h2 class="plan-title">{{ plan.name }}</h2>
+                @if (planService.activePlanMetrics(); as metrics) {
+                  <span class="status-badge">
+                    {{ metrics.completedTaskCount }} / {{ metrics.totalTaskCount }} tasks
+                  </span>
+                }
+              </div>
+              @if (plan.description) {
+                <p class="plan-description">{{ plan.description }}</p>
+              }
+            </header>
+
+            <!-- Progress Display -->
+            <section class="progress-section">
+              <div class="percentage-circle">
+                <span class="percentage-value">
+                  {{ planService.activePercentage() | number:'1.0-0' }}%
+                </span>
+                <span class="percentage-label">Complete</span>
+              </div>
+              
+              <app-progress-bar
+                [value]="planService.activePercentage()"
+                [showLabel]="false"
+              />
+
+              @if (planService.activePlanMetrics(); as metrics) {
+                <div class="metrics-grid">
+                  <div class="metric-card">
+                    <span class="metric-label">Completed Weight</span>
+                    <span class="metric-value">{{ metrics.completedWeight }}</span>
+                  </div>
+                  <div class="metric-card">
+                    <span class="metric-label">Total Weight</span>
+                    <span class="metric-value">{{ metrics.totalWeight }}</span>
+                  </div>
+                </div>
+              }
+            </section>
+
+            <!-- Task List -->
+            <section class="tasks-section">
+              <h3 class="section-title">Tasks</h3>
+              <div class="task-list">
+                @for (task of plan.tasks; track task.id) {
+                  <app-task-item
+                    [task]="task"
+                    (toggleTask)="onToggleTask($event)"
+                  />
+                } @empty {
+                  <div class="empty-tasks">
+                    <p>No tasks yet. Add tasks to start tracking progress!</p>
+                  </div>
+                }
+              </div>
+            </section>
+          </div>
+        } @else {
+          <div class="empty-plan">
+            <h3>No Plan Selected</h3>
+            <p>Select a plan from the sidebar or create a new one to get started.</p>
+          </div>
+        }
+      </main>
+
+      <!-- Plan Creator Modal -->
+      @if (showCreator()) {
+        <app-plan-creator
+          (createPlan)="onPlanCreate($event)"
+          (cancel)="onCloseCreator()"
+        />
       }
-      
-      <div class="progress-display">
-        <div class="percentage-circle">
-          <span class="percentage-value">{{ percentage() | number:'1.0-0' }}%</span>
-          <span class="percentage-label">Complete</span>
-        </div>
-      </div>
-
-      <!-- Progress Bar -->
-      <div class="progress-bar-section">
-        <app-progress-bar
-          [value]="percentage()"
-          [showLabel]="true"
-        />
-      </div>
-      
-      <div class="progress-info">
-        <div class="info-item">
-          <span class="info-label">Current</span>
-          <span class="info-value">{{ goal()?.currentValue || 0 }}</span>
-        </div>
-        <div class="info-divider"></div>
-        <div class="info-item">
-          <span class="info-label">Target</span>
-          <span class="info-value">{{ goal()?.targetValue || 100 }}</span>
-        </div>
-      </div>
-
-      <!-- Input Controls -->
-      <div class="input-section">
-        <app-goal-input
-          (setValue)="onSetValue($event)"
-          (addProgress)="onAddProgress($event)"
-        />
-      </div>
-
-      <!-- Milestones -->
-      <div class="milestones-section">
-        <app-milestone-list
-          [milestones]="milestones()"
-          [currentPercentage]="percentage()"
-        />
-      </div>
-
-      <!-- Reset Button -->
-      <div class="actions-section">
-        <button
-          type="button"
-          class="reset-btn"
-          (click)="onReset()"
-          [disabled]="percentage() === 0"
-        >
-          🔄 Reset Progress
-        </button>
-      </div>
     </div>
   `,
   styles: [`
-    .progress-widget {
-      background: #ffffff;
-      border-radius: 20px;
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
-      padding: 2.5rem;
-      max-width: 500px;
+    .dashboard-container {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 2rem;
+      max-width: 1200px;
       margin: 0 auto;
     }
 
-    .widget-header {
+    .sidebar {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      height: fit-content;
+      position: sticky;
+      top: 2rem;
+    }
+
+    .main-content {
+      background: #ffffff;
+      border-radius: 16px;
+      padding: 2rem;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      min-height: 500px;
+    }
+
+    .plan-header {
+      margin-bottom: 2rem;
+    }
+
+    .header-content {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 1rem;
-      margin-bottom: 1rem;
+      margin-bottom: 0.5rem;
     }
 
-    .widget-title {
+    .plan-title {
       margin: 0;
-      font-size: 1.5rem;
+      font-size: 1.75rem;
       font-weight: 700;
       color: #111827;
-      flex: 1;
+    }
+
+    .plan-description {
+      margin: 0;
+      font-size: 0.875rem;
+      color: #6b7280;
+      line-height: 1.5;
     }
 
     .status-badge {
@@ -143,22 +200,17 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
       white-space: nowrap;
     }
 
-    .widget-description {
-      margin: 0 0 2rem;
-      font-size: 0.875rem;
-      color: #6b7280;
-      line-height: 1.5;
-    }
-
-    .progress-display {
-      display: flex;
-      justify-content: center;
-      margin: 2.5rem 0;
+    .progress-section {
+      margin-bottom: 2.5rem;
+      padding: 2rem;
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%);
+      border-radius: 12px;
     }
 
     .percentage-circle {
-      width: 200px;
-      height: 200px;
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 1.5rem;
       border-radius: 50%;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       display: flex;
@@ -172,7 +224,7 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
     .percentage-circle::before {
       content: '';
       position: absolute;
-      inset: 8px;
+      inset: 6px;
       background: white;
       border-radius: 50%;
     }
@@ -180,7 +232,7 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
     .percentage-value {
       position: relative;
       z-index: 1;
-      font-size: 3.5rem;
+      font-size: 2.5rem;
       font-weight: 800;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       -webkit-background-clip: text;
@@ -193,33 +245,6 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
     .percentage-label {
       position: relative;
       z-index: 1;
-      font-size: 0.875rem;
-      color: #6b7280;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      font-weight: 600;
-    }
-
-    .progress-info {
-      display: flex;
-      align-items: center;
-      justify-content: space-around;
-      gap: 2rem;
-      padding: 1.5rem;
-      background: #f9fafb;
-      border-radius: 12px;
-      margin-top: 2rem;
-    }
-
-    .info-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.5rem;
-      flex: 1;
-    }
-
-    .info-label {
       font-size: 0.75rem;
       color: #6b7280;
       text-transform: uppercase;
@@ -227,111 +252,166 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
       font-weight: 600;
     }
 
-    .info-value {
-      font-size: 1.875rem;
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+      margin-top: 1.5rem;
+    }
+
+    .metric-card {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 1rem;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .metric-label {
+      font-size: 0.75rem;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
       font-weight: 700;
       color: #111827;
     }
 
-    .info-divider {
-      width: 1px;
-      height: 3rem;
-      background: #e5e7eb;
-    }
-
-    .progress-bar-section {
-      margin: 2rem 0;
-    }
-
-    .input-section {
-      margin: 2rem 0;
-      padding: 1.5rem;
-      background: #f9fafb;
-      border-radius: 12px;
-      border: 1px solid #e5e7eb;
-    }
-
-    .milestones-section {
-      margin: 2rem 0;
-    }
-
-    .actions-section {
-      display: flex;
-      justify-content: center;
+    .tasks-section {
       margin-top: 2rem;
     }
 
-    .reset-btn {
-      padding: 0.75rem 2rem;
+    .section-title {
+      margin: 0 0 1rem;
+      font-size: 1.125rem;
+      font-weight: 700;
+      color: #111827;
+    }
+
+    .task-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .empty-tasks,
+    .empty-plan {
+      text-align: center;
+      padding: 3rem 2rem;
+      color: #9ca3af;
+    }
+
+    .empty-plan h3 {
+      color: #6b7280;
+      margin: 0 0 0.5rem;
+    }
+
+    .empty-plan p,
+    .empty-tasks p {
+      margin: 0;
       font-size: 0.875rem;
-      font-weight: 600;
-      border: none;
-      border-radius: 8px;
-      background: #fee2e2;
-      color: #dc2626;
-      cursor: pointer;
-      transition: all 0.2s ease;
     }
 
-    .reset-btn:hover:not(:disabled) {
-      background: #fecaca;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
-    }
+    @media (max-width: 1024px) {
+      .dashboard-container {
+        grid-template-columns: 1fr;
+      }
 
-    .reset-btn:active:not(:disabled) {
-      transform: translateY(0);
-    }
-
-    .reset-btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+      .sidebar {
+        position: static;
+      }
     }
 
     @media (max-width: 640px) {
-      .progress-widget {
+      .main-content {
         padding: 1.5rem;
       }
 
-      .widget-title {
-        font-size: 1.25rem;
+      .plan-title {
+        font-size: 1.5rem;
       }
 
       .percentage-circle {
-        width: 160px;
-        height: 160px;
+        width: 140px;
+        height: 140px;
       }
 
       .percentage-value {
-        font-size: 2.5rem;
-      }
-
-      .info-value {
-        font-size: 1.5rem;
+        font-size: 2rem;
       }
     }
   `]
 })
 export class ProgressContainerComponent {
-  private readonly progressService = inject(ProgressService);
+  readonly planService = inject(PlanService);
+  
+  /** Modal visibility state */
+  readonly showCreator = signal<boolean>(false);
 
-  // Connect to real service data
-  readonly goal = toSignal(this.progressService.goal$, { initialValue: null });
-  readonly percentage = toSignal(this.progressService.percentage$, { initialValue: 0 });
-  readonly milestones = toSignal(this.progressService.milestones$, { initialValue: [] });
-
-  /** Handle slider value change */
-  onSetValue(value: number): void {
-    this.progressService.setProgress(value).subscribe();
+  constructor() {
+    // Effect: Trigger notification when any plan reaches 100%
+    effect(() => {
+      const percentage = this.planService.activePercentage();
+      const plan = this.planService.activePlan();
+      
+      if (percentage >= 100 && plan) {
+        this.onPlanComplete(plan.name);
+      }
+    });
   }
 
-  /** Handle quick add button click */
-  onAddProgress(amount: number): void {
-    this.progressService.addProgress({ value: amount }).subscribe();
+  /** Handle plan selection */
+  onSelectPlan(planId: string): void {
+    this.planService.setActivePlan(planId);
   }
 
-  /** Handle reset button click */
-  onReset(): void {
-    this.progressService.reset().subscribe();
+  /** Handle task toggle */
+  onToggleTask(taskId: string): void {
+    const activePlanId = this.planService.activePlanId();
+    if (activePlanId) {
+      this.planService.toggleTask(activePlanId, taskId).subscribe();
+    }
+  }
+
+  /** Handle create new plan button click */
+  onCreatePlan(): void {
+    this.showCreator.set(true);
+  }
+
+  /** Handle plan creation from modal */
+  onPlanCreate(dto: CreatePlanDto): void {
+    this.planService.createPlan(dto).subscribe({
+      next: (plan) => {
+        console.log('✅ Plan created successfully:', plan.name);
+        this.showCreator.set(false);
+      },
+      error: (error) => {
+        console.error('❌ Failed to create plan:', error);
+        // TODO: Show error toast/notification
+      }
+    });
+  }
+
+  /** Handle modal close */
+  onCloseCreator(): void {
+    this.showCreator.set(false);
+  }
+
+  /** Triggered when plan reaches 100% */
+  private onPlanComplete(planName: string): void {
+    console.log(`🎉 Plan "${planName}" Complete! Congratulations!`);
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification('🎯 Plan Complete!', {
+        body: `Congratulations! You've completed "${planName}"!`,
+        icon: '/favicon.ico'
+      });
+    }
   }
 }

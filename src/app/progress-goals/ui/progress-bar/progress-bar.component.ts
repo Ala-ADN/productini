@@ -11,11 +11,12 @@ import { PercentagePipe } from '../../utils/percentage.pipe';
  * ProgressBarComponent - Presentational (Dumb) Component
  * 
  * Visualizes the progress percentage with a dynamic color bar.
+ * Uses signal inputs for reactive updates.
  * Uses OnPush change detection for performance.
  * 
  * Inputs:
  * - value: number (0-100) - Current progress percentage
- * - showLabel: boolean - Whether to show percentage label
+ * - showLabel: boolean - Whether to show percentage label (default: true)
  */
 @Component({
   selector: 'app-progress-bar',

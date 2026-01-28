@@ -3,27 +3,60 @@ import {
   ChangeDetectionStrategy,
   output,
   signal,
-  computed
+  computed,
+  input,
+  effect
 } from '@angular/core';
-import { FormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 
 /**
  * GoalInputComponent - Presentational (Dumb) Component
  * 
  * Provides input controls for adding progress or setting value directly.
+ * Uses Reactive Forms for robust validation and state management.
  * Uses OnPush change detection for performance.
+ * 
+ * Inputs:
+ * - currentValue: number - Current progress value (0-100)
+ * - maxValue: number - Maximum allowed value (default 100)
  * 
  * Outputs:
  * - addProgress: number - Emitted when user adds incremental progress
- * - setValue: number - Emitted when user sets value via slider
+ * - setValue: number - Emitted when user sets value via slider or form
  */
 @Component({
   selector: 'app-goal-input',
   standalone: true,
-  imports: [FormsModule],
+  imports: [ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="goal-input-wrapper">
+      <!-- Direct Value Form -->
+      <form [formGroup]="valueForm" (ngSubmit)="onSubmitValue()" class="value-form">
+        <label class="form-label">
+          <span>Set Progress Value:</span>
+          <div class="input-group">
+            <input
+              type="number"
+              formControlName="value"
+              class="value-input"
+              placeholder="0-100"
+              aria-label="Progress value"
+            />
+            <button
+              type="submit"
+              class="submit-btn"
+              [disabled]="valueForm.invalid"
+            >
+              Set
+            </button>
+          </div>
+        </label>
+        @if (valueForm.get('value')?.invalid && valueForm.get('value')?.touched) {
+          <span class="error-text">Value must be between 0 and {{ maxValue() }}</span>
+        }
+      </form>
+
       <!-- Slider Control -->
       <div class="slider-section">
         <label class="slider-label">
@@ -34,7 +67,7 @@ import { FormsModule } from '@angular/forms';
           type="range"
           class="slider"
           [min]="0"
-          [max]="100"
+          [max]="maxValue()"
           [value]="sliderValue()"
           (input)="onSliderInput($event)"
           aria-label="Progress slider"
@@ -179,14 +212,91 @@ import { FormsModule } from '@angular/forms';
       opacity: 0.5;
       cursor: not-allowed;
     }
+
+    .value-form {
+      margin-bottom: 1rem;
+    }
+
+    .form-label {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+    }
+
+    .input-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .value-input {
+      flex: 1;
+      padding: 0.75rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .value-input:focus {
+      border-color: #4f46e5;
+    }
+
+    .value-input:invalid {
+      border-color: #ef4444;
+    }
+
+    .submit-btn {
+      padding: 0.75rem 1.5rem;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .error-text {
+      color: #ef4444;
+      font-size: 12px;
+      margin-top: -0.25rem;
+    }
   `]
 })
 export class GoalInputComponent {
+  /** Signal Input: Current progress value */
+  readonly currentValue = input<number>(0);
+  
+  /** Signal Input: Maximum allowed value */
+  readonly maxValue = input<number>(100);
+
   /** Output signal for adding incremental progress */
   readonly addProgress = output<number>();
   
-  /** Output signal for setting value via slider */
+  /** Output signal for setting value directly */
   readonly setValue = output<number>();
+
+  /** Reactive form for value input */
+  readonly valueForm = new FormGroup({
+    value: new FormControl<number>(0, [
+      Validators.required,
+      Validators.min(0),
+      Validators.max(100)
+    ])
+  });
 
   /** Internal slider value signal */
   readonly sliderValue = signal<number>(0);
@@ -194,12 +304,38 @@ export class GoalInputComponent {
   /** Quick add button amounts */
   readonly quickAddAmounts = [5, 10, 25] as const;
 
-  /** Current max value that can be added */
-  private readonly maxAddable = computed(() => 100 - this.sliderValue());
-
-  /** Check if add amount would exceed 100% */
+  /** Check if add amount would exceed max */
   isAddDisabled(amount: number): boolean {
-    return this.sliderValue() + amount > 100;
+    return this.sliderValue() + amount > this.maxValue();
+  }
+
+  constructor() {
+    // Sync slider with current value changes
+    effect(() => {
+      const current = this.currentValue();
+      this.sliderValue.set(current);
+      this.valueForm.patchValue({ value: current }, { emitEvent: false });
+    });
+
+    // Update form validator when maxValue changes
+    effect(() => {
+      const max = this.maxValue();
+      this.valueForm.get('value')?.setValidators([
+        Validators.required,
+        Validators.min(0),
+        Validators.max(max)
+      ]);
+      this.valueForm.get('value')?.updateValueAndValidity();
+    });
+  }
+
+  /** Handle form submission */
+  onSubmitValue(): void {
+    if (this.valueForm.valid) {
+      const value = this.valueForm.value.value ?? 0;
+      this.sliderValue.set(value);
+      this.setValue.emit(value);
+    }
   }
 
   /** Handle slider input changes */
@@ -212,14 +348,8 @@ export class GoalInputComponent {
 
   /** Handle quick add button clicks */
   onQuickAdd(amount: number): void {
-    const newValue = Math.min(this.sliderValue() + amount, 100);
-    this.sliderValue.set(newValue);
-    this.addProgress.emit(amount);
-    this.setValue.emit(newValue);
-  }
-
-  /** Update slider value from parent (for sync) */
-  updateValue(value: number): void {
-    this.sliderValue.set(Math.max(0, Math.min(100, value)));
+    if (!this.isAddDisabled(amount)) {
+      this.addProgress.emit(amount);
+    }
   }
 }
