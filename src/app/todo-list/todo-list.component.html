@@ -30,7 +30,7 @@
                 (keyup.enter)="addTodo()" placeholder="Add a new task..." class="todo-input-text"
                 aria-label="New todo text" />
             <input type="date" [ngModel]="newTodoDate()" (ngModelChange)="newTodoDate.set($event)"
-                class="todo-input-date" aria-label="Due date" />
+                class="todo-input-date" aria-label="Due date" max="9999-12-31" />
         </div>
 
         <button (click)="addTodo()" class="add-button" aria-label="Add todo">

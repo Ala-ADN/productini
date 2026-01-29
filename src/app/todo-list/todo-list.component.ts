@@ -59,6 +59,15 @@ export class TodoListComponent {
     addTodo() {
         const text = this.newTodoText().trim();
         if (text) {
+            let date = this.newTodoDate();
+            // Validate date: Prevent year > 9999
+            if (date) {
+                const year = new Date(date).getFullYear();
+                if (year > 9999 || date.length > 10) {
+                    date = ''; // Or handle explicitly
+                }
+            }
+
             this.todos.update((todos) => [
                 {
                     id: Date.now(),
@@ -66,7 +75,7 @@ export class TodoListComponent {
                     completed: false,
                     priority: this.newTodoPriority(),
                     createdAt: Date.now(),
-                    dueDate: this.newTodoDate() || null,
+                    dueDate: date || null,
                 },
                 ...todos,
             ]);
@@ -157,14 +166,14 @@ export class TodoListComponent {
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Tomorrow';
 
-        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     isOverdue(dateStr: string | null): boolean {
         if (!dateStr) return false;
         const date = new Date(dateStr);
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // compare against start of today
+        now.setHours(0, 0, 0, 0);
         return new Date(dateStr) < now;
     }
 
