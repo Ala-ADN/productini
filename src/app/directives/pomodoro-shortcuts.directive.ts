@@ -3,7 +3,7 @@ import { PomodoroService } from '../services/pomodoro.service';
 
 @Directive({
   selector: '[appPomodoroShortcuts]',
-  standalone: true
+  standalone: true,
 })
 export class PomodoroShortcutsDirective {
   constructor(private pomodoroService: PomodoroService) {}

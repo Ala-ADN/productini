@@ -56,15 +56,15 @@ export class PomodoroService {
   // Statistics computed from session history
   statistics = computed(() => {
     const history = this.sessionHistory();
-    const workSessions = history.filter(s => s.type === 'WORK' && !s.interrupted);
+    const workSessions = history.filter((s) => s.type === 'WORK' && !s.interrupted);
     const totalSessions = workSessions.length;
     const focusTime = workSessions.reduce((acc, s) => acc + s.duration, 0);
-    
+
     return {
       totalSessions,
       focusTime,
       longestStreak: this.calculateStreak(history),
-      last7Days: this.getLast7DaysStats(history)
+      last7Days: this.getLast7DaysStats(history),
     };
   });
 
@@ -72,19 +72,17 @@ export class PomodoroService {
   private timer$ = defer(() => {
     return interval(1000).pipe(
       takeWhile(() => this.timeLeft() > 0),
-      tap(() => this.timeLeft.update(t => t - 1)),
+      tap(() => this.timeLeft.update((t) => t - 1)),
       finalize(() => this.completeSession()),
-      share()
+      share(),
     );
   });
 
   // Reactive timer control with switchMap
   private timerControl$ = merge(
     this.start$.pipe(map(() => true)),
-    this.pause$.pipe(map(() => false))
-  ).pipe(
-    switchMap(shouldRun => shouldRun ? this.timer$ : EMPTY)
-  );
+    this.pause$.pipe(map(() => false)),
+  ).pipe(switchMap((shouldRun) => (shouldRun ? this.timer$ : EMPTY)));
 
   constructor() {
     // Subscribe to reactive timer control
@@ -105,7 +103,8 @@ export class PomodoroService {
       // Record interrupted session if significant time passed
       if (this.sessionStartTime && this.sessionStartDuration) {
         const elapsed = this.sessionStartDuration - this.timeLeft();
-        if (elapsed > 60) { // More than 1 minute
+        if (elapsed > 60) {
+          // More than 1 minute
           this.recordSession(true);
         }
       }
@@ -192,22 +191,24 @@ export class PomodoroService {
       type: this.mode(),
       duration: Math.floor(elapsed / 60),
       completedAt: new Date(),
-      interrupted
+      interrupted,
     };
 
-    this.sessionHistory.update(history => [...history, session]);
+    this.sessionHistory.update((history) => [...history, session]);
     this.saveSessionHistory();
   }
 
   private calculateStreak(history: PomodoroSession[]): number {
-    const workSessions = history.filter(s => s.type === 'WORK' && !s.interrupted);
+    const workSessions = history.filter((s) => s.type === 'WORK' && !s.interrupted);
     let currentStreak = 0;
     let maxStreak = 0;
 
     for (let i = 0; i < workSessions.length; i++) {
       currentStreak++;
-      if (i === workSessions.length - 1 || 
-          workSessions[i + 1].completedAt.getTime() - workSessions[i].completedAt.getTime() > 3600000) {
+      if (
+        i === workSessions.length - 1 ||
+        workSessions[i + 1].completedAt.getTime() - workSessions[i].completedAt.getTime() > 3600000
+      ) {
         maxStreak = Math.max(maxStreak, currentStreak);
         currentStreak = 0;
       }
@@ -216,7 +217,9 @@ export class PomodoroService {
     return maxStreak;
   }
 
-  private getLast7DaysStats(history: PomodoroSession[]): { date: string; sessions: number; minutes: number }[] {
+  private getLast7DaysStats(
+    history: PomodoroSession[],
+  ): { date: string; sessions: number; minutes: number }[] {
     const today = new Date();
     const last7Days = [];
 
@@ -224,11 +227,11 @@ export class PomodoroService {
       const date = new Date(today);
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
-      
+
       const nextDate = new Date(date);
       nextDate.setDate(nextDate.getDate() + 1);
 
-      const daySessions = history.filter(s => {
+      const daySessions = history.filter((s) => {
         const sessionDate = new Date(s.completedAt);
         return sessionDate >= date && sessionDate < nextDate && s.type === 'WORK' && !s.interrupted;
       });
@@ -236,7 +239,7 @@ export class PomodoroService {
       last7Days.push({
         date: date.toLocaleDateString('en-US', { weekday: 'short' }),
         sessions: daySessions.length,
-        minutes: daySessions.reduce((acc, s) => acc + s.duration, 0)
+        minutes: daySessions.reduce((acc, s) => acc + s.duration, 0),
       });
     }
 
@@ -257,7 +260,7 @@ export class PomodoroService {
       if (stored) {
         const history = JSON.parse(stored).map((s: any) => ({
           ...s,
-          completedAt: new Date(s.completedAt)
+          completedAt: new Date(s.completedAt),
         }));
         this.sessionHistory.set(history);
       }

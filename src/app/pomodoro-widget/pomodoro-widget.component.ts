@@ -12,7 +12,7 @@ import { PomodoroStatsComponent } from '../pomodoro-stats/pomodoro-stats.compone
   templateUrl: './pomodoro-widget.component.html',
   styleUrls: ['./pomodoro-widget.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  hostDirectives: [PomodoroShortcutsDirective]
+  hostDirectives: [PomodoroShortcutsDirective],
 })
 export class PomodoroWidgetComponent implements OnInit {
   // Inject the shared service
