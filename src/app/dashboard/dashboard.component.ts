@@ -1,11 +1,12 @@
 import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
+import { HabitCounter } from '../components/habit-counter/habit-counter';
+import { TodoListComponent } from '../todo-list/todo-list.component';
 
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [RouterLink, CommonModule],
+    imports: [CommonModule, HabitCounter, TodoListComponent],
     templateUrl: './dashboard.component.html',
     styleUrl: './dashboard.component.css'
 })

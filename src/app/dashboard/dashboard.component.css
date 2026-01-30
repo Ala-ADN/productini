@@ -1,6 +1,6 @@
 :host {
     display: block;
-    max-width: 900px;
+    max-width: 1200px;
     margin: 0 auto;
     padding: 1rem;
 }
@@ -179,7 +179,15 @@
 /* Widgets */
 .widgets-row {
     display: grid;
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .widgets-row {
+        grid-template-columns: 1fr;
+    }
 }
 
 .widget {
