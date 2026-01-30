@@ -4,7 +4,7 @@ import { DashboardComponent } from './dashboard/dashboard.component';
 import { PomodoroWidgetComponent } from './pomodoro-widget/pomodoro-widget.component';
 
 export const routes: Routes = [
-    { path: '', component: DashboardComponent },
-    { path: 'todo', component: TodoListComponent },
-    { path: 'pomodoro', component: PomodoroWidgetComponent },
+  { path: '', component: DashboardComponent },
+  { path: 'todo', component: TodoListComponent },
+  { path: 'pomodoro', component: PomodoroWidgetComponent },
 ];

@@ -1,21 +1,33 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Location } from '@angular/common';
 import { PomodoroService } from '../services/pomodoro.service';
+import { PomodoroShortcutsDirective } from '../directives/pomodoro-shortcuts.directive';
+import { PomodoroStatsComponent } from '../pomodoro-stats/pomodoro-stats.component';
 
 @Component({
   selector: 'app-pomodoro-widget',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, PomodoroShortcutsDirective, PomodoroStatsComponent],
   templateUrl: './pomodoro-widget.component.html',
   styleUrls: ['./pomodoro-widget.component.scss'],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  hostDirectives: [PomodoroShortcutsDirective]
 })
 export class PomodoroWidgetComponent implements OnInit {
   // Inject the shared service
-  constructor(public pomodoroService: PomodoroService) {}
+  constructor(
+    public pomodoroService: PomodoroService,
+    private location: Location,
+  ) {}
 
   ngOnInit() {
     // Request notification permission when component initializes
     this.pomodoroService.requestNotificationPermission();
+  }
+
+  goBack() {
+    this.location.back();
   }
 
   // Delegate all methods to the service
@@ -57,5 +69,15 @@ export class PomodoroWidgetComponent implements OnInit {
 
   reset() {
     this.pomodoroService.reset();
+  }
+
+  updateWorkMinutes(event: Event) {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    this.pomodoroService.setWorkMinutes(value);
+  }
+
+  updateBreakMinutes(event: Event) {
+    const value = parseInt((event.target as HTMLInputElement).value, 10);
+    this.pomodoroService.setBreakMinutes(value);
   }
 }

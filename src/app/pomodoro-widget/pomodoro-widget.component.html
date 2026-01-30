@@ -1,42 +1,87 @@
-<div class="pomo-card" [class.active]="isActive()" [class.break-mode]="mode() === 'BREAK'">
-  <div class="header">
-    <span class="badge">{{ MODES[mode()].label }}</span>
-    <p class="task-context">
-      Working on: <strong>{{ currentTask }}</strong>
-    </p>
-  </div>
-
-  <div class="timer-circle">
-    <svg viewBox="0 0 36 36" class="circular-chart">
-      <path
-        class="circle-bg"
-        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-      />
-      <path
-        class="circle"
-        [attr.stroke-dasharray]="progress() + ', 100'"
-        d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-      />
-    </svg>
-    <div class="time-text">{{ formattedTime() }}</div>
-  </div>
-
-  <div class="controls">
-    <button (click)="toggleTimer()" class="btn-primary">
-      {{ isActive() ? 'Pause' : 'Start' }}
-    </button>
-    <button (click)="reset()" class="btn-secondary">Reset</button>
-    <div class="mode-switch">
-      <button (click)="switchMode('WORK')" [class.active-mode]="mode() === 'WORK'" class="mode-btn">
-        Focus
+<div class="overlay-backdrop">
+  <div class="overlay-container">
+    <div class="pomo-card" [class.active]="isActive()" [class.break-mode]="mode() === 'BREAK'">
+      <button class="back-button" (click)="goBack()">
+        <span class="back-arrow">←</span>
       </button>
-      <button
-        (click)="switchMode('BREAK')"
-        [class.active-mode]="mode() === 'BREAK'"
-        class="mode-btn"
-      >
-        Break
-      </button>
+
+      <div class="header">
+        <span class="badge">{{ MODES[mode()].label }}</span>
+        <p class="task-context">
+          Working on: <strong>{{ currentTask }}</strong>
+        </p>
+
+        <!-- Time Configuration -->
+        <div class="time-config">
+          <div class="config-item">
+            <label for="work-time">Focus</label>
+            <input
+              type="number"
+              id="work-time"
+              [value]="pomodoroService.workMinutes()"
+              (change)="updateWorkMinutes($event)"
+              [disabled]="isActive()"
+              min="1"
+              max="90"
+            />
+            <span class="unit">min</span>
+          </div>
+          <div class="config-item">
+            <label for="break-time">Break</label>
+            <input
+              type="number"
+              id="break-time"
+              [value]="pomodoroService.breakMinutes()"
+              (change)="updateBreakMinutes($event)"
+              [disabled]="isActive()"
+              min="1"
+              max="30"
+            />
+            <span class="unit">min</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="timer-circle">
+        <svg viewBox="0 0 36 36" class="circular-chart">
+          <path
+            class="circle-bg"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+          <path
+            class="circle"
+            [attr.stroke-dasharray]="progress() + ', 100'"
+            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+          />
+        </svg>
+        <div class="time-text">{{ formattedTime() }}</div>
+      </div>
+
+      <div class="controls">
+        <div class="mode-switch">
+          <button
+            (click)="switchMode('WORK')"
+            [class.active-mode]="mode() === 'WORK'"
+            class="mode-btn"
+          >
+            Focus
+          </button>
+          <button
+            (click)="switchMode('BREAK')"
+            [class.active-mode]="mode() === 'BREAK'"
+            class="mode-btn"
+          >
+            Break
+          </button>
+        </div>
+        <button (click)="toggleTimer()" class="btn-primary">
+          {{ isActive() ? 'Pause' : 'Start' }}
+        </button>
+        <button (click)="reset()" class="btn-secondary">Reset</button>
+      </div>
+
+      <!-- Statistics Dashboard -->
+      <app-pomodoro-stats></app-pomodoro-stats>
     </div>
   </div>
 </div>
