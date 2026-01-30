@@ -10,7 +10,7 @@
   border-radius: 24px;
   padding: 2rem;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-  min-height: 400px;
+  min-height: 500px;
 }
 
 .todo-header {
@@ -58,10 +58,6 @@
   transform: translateY(-2px);
 }
 
-.todo-input::placeholder {
-  color: #999;
-}
-
 .add-button {
   padding: 1rem 1.75rem;
   border: none;
@@ -87,9 +83,40 @@
   transform: translateY(0);
 }
 
-.add-icon {
-  font-size: 1.5rem;
-  line-height: 1;
+/* Filter Section */
+.filter-section {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 0.5rem;
+  border-radius: 12px;
+}
+
+.filter-btn {
+  background: transparent;
+  border: none;
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  opacity: 0.8;
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  opacity: 1;
+}
+
+.filter-btn.active {
+  background: white;
+  color: #764ba2;
+  font-weight: 600;
+  opacity: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .todo-list {
@@ -107,17 +134,13 @@
   justify-content: center;
   padding: 3rem 1rem;
   color: #999;
+  text-align: center;
 }
 
 .empty-icon {
-  font-size: 4rem;
+  font-size: 3rem;
   margin-bottom: 1rem;
   opacity: 0.5;
-}
-
-.empty-state p {
-  margin: 0;
-  font-size: 1.1rem;
 }
 
 .todo-item {
@@ -130,6 +153,8 @@
   background: white;
   transition: all 0.3s ease;
   animation: slideIn 0.3s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 @keyframes slideIn {
@@ -137,6 +162,7 @@
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -146,7 +172,6 @@
 .todo-item:hover {
   background: #f8f9fa;
   transform: translateX(4px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .todo-item.completed {
@@ -194,19 +219,14 @@
   transition: all 0.3s ease;
 }
 
-.todo-checkbox-wrapper input:checked ~ .checkmark {
+.todo-checkbox-wrapper input:checked~.checkmark {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border-color: #667eea;
 }
 
-.todo-checkbox-wrapper input:checked ~ .checkmark::after {
+.todo-checkbox-wrapper input:checked~.checkmark::after {
   opacity: 1;
   transform: scale(1);
-}
-
-.todo-checkbox-wrapper:hover .checkmark {
-  border-color: #764ba2;
-  box-shadow: 0 0 8px rgba(102, 126, 234, 0.3);
 }
 
 .todo-text {
@@ -216,15 +236,34 @@
   transition: all 0.3s ease;
 }
 
+/* Delete Button */
+.delete-btn {
+  background: transparent;
+  border: none;
+  color: #ff6b6b;
+  font-size: 1.5rem;
+  cursor: pointer;
+  padding: 0 0.5rem;
+  opacity: 0;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.todo-item:hover .delete-btn {
+  opacity: 0.7;
+}
+
+.delete-btn:hover {
+  opacity: 1 !important;
+  background-color: rgba(255, 107, 107, 0.1);
+  transform: scale(1.1);
+}
+
 /* Responsive Design */
 @media (max-width: 640px) {
   .todo-container {
     padding: 1.5rem;
-    border-radius: 16px;
-  }
-
-  .todo-header h1 {
-    font-size: 2rem;
   }
 
   .todo-input-section {
@@ -234,5 +273,10 @@
   .add-button {
     width: 100%;
     justify-content: center;
+  }
+
+  .delete-btn {
+    opacity: 1;
+    /* Always show delete on mobile since no hover */
   }
 }

@@ -1,7 +1,7 @@
 <div class="todo-container">
     <div class="todo-header">
         <h1>✨ My Todo List</h1>
-        <p class="stats">{{ completedCount }} of {{ totalCount }} completed</p>
+        <p class="stats">{{ completedCount() }} of {{ totalCount() }} completed</p>
     </div>
 
     <div class="todo-input-section">
@@ -13,15 +13,32 @@
         </button>
     </div>
 
+    <div class="filter-section">
+        <button [class.active]="currentFilter() === 'all'" (click)="setFilter('all')" class="filter-btn">
+            All
+        </button>
+        <button [class.active]="currentFilter() === 'active'" (click)="setFilter('active')" class="filter-btn">
+            Active
+        </button>
+        <button [class.active]="currentFilter() === 'completed'" (click)="setFilter('completed')" class="filter-btn">
+            Completed
+        </button>
+    </div>
+
     <div class="todo-list">
-        @if (todos().length === 0) {
+        @if (filteredTodos().length === 0 && todos().length === 0) {
         <div class="empty-state">
             <div class="empty-icon">📝</div>
             <p>No todos yet. Add one to get started!</p>
         </div>
+        } @else if (filteredTodos().length === 0) {
+        <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <p>No {{ currentFilter() }} todos found.</p>
+        </div>
         }
 
-        @for (todo of todos(); track todo.id) {
+        @for (todo of filteredTodos(); track todo.id) {
         <div class="todo-item" [class.completed]="todo.completed">
             <label class="todo-checkbox-wrapper">
                 <input type="checkbox" [checked]="todo.completed" (change)="toggleTodo(todo.id)"
@@ -29,6 +46,9 @@
                 <span class="checkmark"></span>
             </label>
             <span class="todo-text">{{ todo.text }}</span>
+            <button (click)="deleteTodo(todo.id)" class="delete-btn" aria-label="Delete todo">
+                ×
+            </button>
         </div>
         }
     </div>
