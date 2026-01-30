@@ -384,6 +384,11 @@
   border-color: rgba(225, 48, 108, 0.5);
 }
 
+.reader-btn:hover {
+  background: rgba(76, 175, 80, 0.3);
+  border-color: rgba(76, 175, 80, 0.5);
+}
+
 .favorites-count {
   text-align: center;
   padding: 0.8rem;

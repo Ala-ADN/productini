@@ -238,6 +238,45 @@ export class QuoteGeneratorComponent {
     });
   }
 
+  readQuote(): void {
+    const quote = this.currentQuote();
+    const text = `${quote.text}. By ${quote.author}`;
+    
+    // Cancel any ongoing speech
+    window.speechSynthesis.cancel();
+    
+    // Create speech synthesis
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Get available voices and select the best quality one
+    const voices = window.speechSynthesis.getVoices();
+    
+    // Prefer high-quality voices (Google, Microsoft, or native premium voices)
+    const preferredVoice = voices.find(voice => 
+      voice.name.includes('Google') || 
+      voice.name.includes('Premium') ||
+      voice.name.includes('Enhanced') ||
+      voice.name.includes('Natural') ||
+      (voice.lang.startsWith('en') && voice.localService === false)
+    ) || voices.find(voice => voice.lang.startsWith('en'));
+    
+    if (preferredVoice) {
+      utterance.voice = preferredVoice;
+    }
+    
+    // Enhanced speech parameters for better quality
+    utterance.rate = 0.85; // Slower for clarity and emphasis
+    utterance.pitch = 1.05; // Slightly higher for warmth
+    utterance.volume = 1;
+    
+    // Add natural pauses by inserting commas if not present
+    const textWithPauses = text.replace(/([.!?])\s+/g, '$1 ... ');
+    utterance.text = textWithPauses;
+    
+    // Speak the quote
+    window.speechSynthesis.speak(utterance);
+  }
+
   toggleAddQuoteForm(): void {
     this.showAddQuoteForm.update(state => !state);
     // Reset form when closing

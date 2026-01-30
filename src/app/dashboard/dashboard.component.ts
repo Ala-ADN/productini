@@ -28,6 +28,14 @@ export class DashboardComponent {
             color: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
         },
         {
+            id: 'quotes',
+            name: 'Quote Generator',
+            icon: '💡',
+            desc: 'Daily motivation & inspiring quotes',
+            link: '/quotes',
+            color: 'linear-gradient(135deg, #8b9dc3 0%, #9a8ab4 100%)'
+        },
+        {
             id: 'notes',
             name: 'Quick Notes',
             icon: '📒',
