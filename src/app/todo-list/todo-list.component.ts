@@ -11,7 +11,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     createdAt: number;
-    dueDate: string | null;
+    dueDate: string; // Now required in interface implies it's always set on creation, though can be string
 }
 
 type FilterType = 'all' | 'active' | 'completed';
@@ -32,7 +32,8 @@ export class TodoListComponent {
     newTodoDate = signal('');
     searchQuery = signal('');
 
-    // State
+    // UI State
+    errorMsg = signal('');
     currentFilter = signal<FilterType>('all');
     editingId = signal<number | null>(null);
 
@@ -44,7 +45,7 @@ export class TodoListComponent {
                 this.todos.set(parsed.map((t: any) => ({
                     ...t,
                     priority: t.priority || 'medium',
-                    dueDate: t.dueDate || null
+                    dueDate: t.dueDate || ''
                 })));
             } catch (e) {
                 console.error('Failed to load todos', e);
@@ -58,32 +59,47 @@ export class TodoListComponent {
 
     addTodo() {
         const text = this.newTodoText().trim();
-        if (text) {
-            let date = this.newTodoDate();
-            // Validate date: Prevent year > 9999
-            if (date) {
-                const year = new Date(date).getFullYear();
-                if (year > 9999 || date.length > 10) {
-                    date = ''; // Or handle explicitly
-                }
-            }
+        const dateStr = this.newTodoDate();
 
-            this.todos.update((todos) => [
-                {
-                    id: Date.now(),
-                    text,
-                    completed: false,
-                    priority: this.newTodoPriority(),
-                    createdAt: Date.now(),
-                    dueDate: date || null,
-                },
-                ...todos,
-            ]);
-            // Reset inputs
-            this.newTodoText.set('');
-            this.newTodoPriority.set('medium');
-            this.newTodoDate.set('');
+        // Reset error
+        this.errorMsg.set('');
+
+        // 1. Validate Name
+        if (!text) {
+            this.errorMsg.set('⚠️ Please enter a task name.');
+            return;
         }
+
+        // 2. Validate Date
+        if (!dateStr) {
+            this.errorMsg.set('⚠️ Please select a due date.');
+            return;
+        }
+
+        // 3. Validate Year format
+        const year = new Date(dateStr).getFullYear();
+        if (year > 9999 || dateStr.length > 10) {
+            this.errorMsg.set('⚠️ Invalid year. Please use 4 digits (e.g., 2026).');
+            return;
+        }
+
+        // Proceed if valid
+        this.todos.update((todos) => [
+            {
+                id: Date.now(),
+                text,
+                completed: false,
+                priority: this.newTodoPriority(),
+                createdAt: Date.now(),
+                dueDate: dateStr,
+            },
+            ...todos,
+        ]);
+
+        // Reset inputs
+        this.newTodoText.set('');
+        this.newTodoPriority.set('medium');
+        this.newTodoDate.set('');
     }
 
     toggleTodo(id: number) {
@@ -132,12 +148,10 @@ export class TodoListComponent {
         const query = this.searchQuery().toLowerCase();
         let todos = this.todos();
 
-        // 1. Apply Search
         if (query) {
             todos = todos.filter(t => t.text.toLowerCase().includes(query));
         }
 
-        // 2. Apply Tabs
         switch (filter) {
             case 'active':
                 return todos.filter(t => !t.completed);
@@ -155,7 +169,6 @@ export class TodoListComponent {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Reset date part to compare only dates
         const checkDate = new Date(date);
         checkDate.setHours(0, 0, 0, 0);
 
