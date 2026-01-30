@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, computed, effect, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, signal, computed, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
@@ -95,6 +95,9 @@ export class QuoteGeneratorComponent implements OnInit {
   }
 
   async ngOnInit(): Promise<void> {
+    // Initialize default quotes if database is empty
+    await this.quoteService.initializeDefaultQuotes();
+
     // Set first quote as current
     const quotes = await this.quoteService.getAllQuotes();
     if (quotes.length > 0) {
@@ -184,15 +187,15 @@ export class QuoteGeneratorComponent implements OnInit {
     const quote = this.currentQuote();
     if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    const success = await this.clipboardService.copyToClipboard(text);
-    // TODO: Add user feedback (toast/snackbar) based on success
+    await this.clipboardService.copyToClipboard(text);
+    // TODO: Add user feedback (toast/snackbar)
   }
 
   async shareQuote(): Promise<void> {
     const quote = this.currentQuote();
     if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    const success = await this.shareService.share({
+    await this.shareService.share({
       title: 'Motivational Quote',
       text: text
     });
