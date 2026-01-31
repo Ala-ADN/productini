@@ -13,6 +13,25 @@
   min-height: 500px;
 }
 
+.header-nav {
+  margin-bottom: 1rem;
+}
+
+.back-link {
+  color: rgba(255, 255, 255, 0.8);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+}
+
+.back-link:hover {
+  color: white;
+  transform: translateX(-4px);
+}
+
 /* Header & Search */
 .todo-header {
   margin-bottom: 2rem;

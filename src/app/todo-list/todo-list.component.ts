@@ -1,6 +1,7 @@
 import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { RouterLink } from '@angular/router';
 
 export type Priority = 'high' | 'medium' | 'low';
 
@@ -10,7 +11,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     createdAt: number;
-    dueDate: string | null; // ISO Date string YYYY-MM-DD
+    dueDate: string | null;
 }
 
 type FilterType = 'all' | 'active' | 'completed';
@@ -18,7 +19,7 @@ type FilterType = 'all' | 'active' | 'completed';
 @Component({
     selector: 'app-todo-list',
     standalone: true,
-    imports: [FormsModule, CommonModule],
+    imports: [FormsModule, CommonModule, RouterLink],
     templateUrl: './todo-list.component.html',
     styleUrl: './todo-list.component.css',
 })
@@ -147,7 +148,7 @@ export class TodoListComponent {
 
         // Reset date part to compare only dates
         const checkDate = new Date(date);
-        checkDate.setHours(0, 0, 0, 0); // Treat as local date for simplicity
+        checkDate.setHours(0, 0, 0, 0);
 
         const diffTime = checkDate.getTime() - today.getTime();
         const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -163,7 +164,7 @@ export class TodoListComponent {
         if (!dateStr) return false;
         const date = new Date(dateStr);
         const now = new Date();
-        now.setHours(0, 0, 0, 0);
+        now.setHours(0, 0, 0, 0); // compare against start of today
         return new Date(dateStr) < now;
     }
 

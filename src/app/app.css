@@ -1,14 +1,8 @@
-.app-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 100vh;
-    background-color: #f0f2f5;
-    padding: 2rem;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-}
-
-/* Reset default margins for the whole app */
 :host {
     display: block;
+    min-height: 100vh;
+    background-color: #f0f2f5;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    padding: 2rem;
+    box-sizing: border-box;
 }
