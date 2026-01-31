@@ -92,11 +92,16 @@ export class ProgressService {
     
     this.http.get<Goal[]>(this.API_URL).pipe(
       tap(goals => {
-        if (goals.length > 0) {
+        if (goals && goals.length > 0) {
           const goal = this.mapGoalFromApi(goals[0]);
           this._goalId.set(goal._id || null);
           this.updateState({ goal, loading: false });
           this._goalSignal.set(goal);
+        } else {
+          // No goals in DB, use local default
+          const localGoal = this.createDefaultGoal();
+          this.updateState({ goal: localGoal, loading: false });
+          this._goalSignal.set(localGoal);
         }
       }),
       catchError(error => {
