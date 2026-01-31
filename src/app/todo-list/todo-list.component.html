@@ -25,12 +25,20 @@
                 title="Low Priority"></button>
         </div>
 
-        <div class="input-group">
-            <input type="text" [ngModel]="newTodoText()" (ngModelChange)="newTodoText.set($event)"
-                (keyup.enter)="addTodo()" placeholder="Add a new task..." class="todo-input-text"
-                aria-label="New todo text" />
-            <input type="date" [ngModel]="newTodoDate()" (ngModelChange)="newTodoDate.set($event)"
-                class="todo-input-date" aria-label="Due date" />
+        <div class="input-container">
+            <div class="input-group">
+                <input type="text" [ngModel]="newTodoText()" (ngModelChange)="newTodoText.set($event)"
+                    (keyup.enter)="addTodo()" placeholder="Add a new task..." class="todo-input-text"
+                    aria-label="New todo text" />
+                <input type="date" [ngModel]="newTodoDate()" (ngModelChange)="newTodoDate.set($event)"
+                    class="todo-input-date" aria-label="Due date" max="9999-12-31" />
+            </div>
+
+            @if (errorMsg()) {
+            <div class="error-message">
+                {{ errorMsg() }}
+            </div>
+            }
         </div>
 
         <button (click)="addTodo()" class="add-button" aria-label="Add todo">
@@ -59,7 +67,8 @@
         }
     </div>
 
-    <div class="todo-list">
+    <div class="todo-list" cdkDropList (cdkDropListDropped)="drop($event)">
+
         @if (filteredTodos().length === 0) {
         <div class="empty-state">
             <div class="empty-icon">
@@ -72,7 +81,14 @@
         }
 
         @for (todo of filteredTodos(); track todo.id) {
-        <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'">
+        <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'"
+            cdkDrag [cdkDragDisabled]="currentFilter() !== 'all' || !!searchQuery()">
+
+            <div class="drag-handle" cdkDragHandle
+                [style.opacity]="(currentFilter() !== 'all' || !!searchQuery()) ? '0.3' : '1'"
+                [style.cursor]="(currentFilter() !== 'all' || !!searchQuery()) ? 'default' : 'grab'">
+                ⋮⋮
+            </div>
 
             <label class="todo-checkbox-wrapper">
                 <input type="checkbox" [checked]="todo.completed" (change)="toggleTodo(todo.id)" />

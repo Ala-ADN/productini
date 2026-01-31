@@ -2,6 +2,7 @@ import { Component, computed, effect, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 
 export type Priority = 'high' | 'medium' | 'low';
 
@@ -11,7 +12,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     createdAt: number;
-    dueDate: string | null;
+    dueDate: string;
 }
 
 type FilterType = 'all' | 'active' | 'completed';
@@ -19,7 +20,7 @@ type FilterType = 'all' | 'active' | 'completed';
 @Component({
     selector: 'app-todo-list',
     standalone: true,
-    imports: [FormsModule, CommonModule, RouterLink],
+    imports: [FormsModule, CommonModule, RouterLink, DragDropModule],
     templateUrl: './todo-list.component.html',
     styleUrl: './todo-list.component.css',
 })
@@ -32,7 +33,8 @@ export class TodoListComponent {
     newTodoDate = signal('');
     searchQuery = signal('');
 
-    // State
+    // UI State
+    errorMsg = signal('');
     currentFilter = signal<FilterType>('all');
     editingId = signal<number | null>(null);
 
@@ -44,7 +46,7 @@ export class TodoListComponent {
                 this.todos.set(parsed.map((t: any) => ({
                     ...t,
                     priority: t.priority || 'medium',
-                    dueDate: t.dueDate || null
+                    dueDate: t.dueDate || ''
                 })));
             } catch (e) {
                 console.error('Failed to load todos', e);
@@ -56,25 +58,57 @@ export class TodoListComponent {
         });
     }
 
+    // Drag and Drop Handler
+    drop(event: CdkDragDrop<Todo[]>) {
+        // We only allow reordering when showing 'all' and no search query
+        // Otherwise the visual order doesn't match the actual list
+        if (this.currentFilter() !== 'all' || this.searchQuery()) {
+            return;
+        }
+
+        this.todos.update(currentTodos => {
+            const newTodos = [...currentTodos];
+            moveItemInArray(newTodos, event.previousIndex, event.currentIndex);
+            return newTodos;
+        });
+    }
+
     addTodo() {
         const text = this.newTodoText().trim();
-        if (text) {
-            this.todos.update((todos) => [
-                {
-                    id: Date.now(),
-                    text,
-                    completed: false,
-                    priority: this.newTodoPriority(),
-                    createdAt: Date.now(),
-                    dueDate: this.newTodoDate() || null,
-                },
-                ...todos,
-            ]);
-            // Reset inputs
-            this.newTodoText.set('');
-            this.newTodoPriority.set('medium');
-            this.newTodoDate.set('');
+        const dateStr = this.newTodoDate();
+
+        this.errorMsg.set('');
+
+        if (!text) {
+            this.errorMsg.set('⚠️ Please enter a task name.');
+            return;
         }
+        if (!dateStr) {
+            this.errorMsg.set('⚠️ Please select a due date.');
+            return;
+        }
+
+        const year = new Date(dateStr).getFullYear();
+        if (year > 9999 || dateStr.length > 10) {
+            this.errorMsg.set('⚠️ Invalid year. Please use 4 digits (e.g., 2026).');
+            return;
+        }
+
+        this.todos.update((todos) => [
+            {
+                id: Date.now(),
+                text,
+                completed: false,
+                priority: this.newTodoPriority(),
+                createdAt: Date.now(),
+                dueDate: dateStr,
+            },
+            ...todos,
+        ]);
+
+        this.newTodoText.set('');
+        this.newTodoPriority.set('medium');
+        this.newTodoDate.set('');
     }
 
     toggleTodo(id: number) {
@@ -91,7 +125,6 @@ export class TodoListComponent {
         this.todos.update((todos) => todos.filter((t) => !t.completed));
     }
 
-    // Editing
     startEdit(id: number) {
         if (!this.todos().find(t => t.id === id)?.completed) {
             this.editingId.set(id);
@@ -113,22 +146,18 @@ export class TodoListComponent {
         this.editingId.set(null);
     }
 
-    // Setters
     setFilter(filter: FilterType) { this.currentFilter.set(filter); }
     setPriority(priority: Priority) { this.newTodoPriority.set(priority); }
 
-    // Search & Filter Logic
     filteredTodos = computed(() => {
         const filter = this.currentFilter();
         const query = this.searchQuery().toLowerCase();
         let todos = this.todos();
 
-        // 1. Apply Search
         if (query) {
             todos = todos.filter(t => t.text.toLowerCase().includes(query));
         }
 
-        // 2. Apply Tabs
         switch (filter) {
             case 'active':
                 return todos.filter(t => !t.completed);
@@ -139,14 +168,12 @@ export class TodoListComponent {
         }
     });
 
-    // Helpers for Display
     getDueDateLabel(dateStr: string | null): string {
         if (!dateStr) return '';
         const date = new Date(dateStr);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        // Reset date part to compare only dates
         const checkDate = new Date(date);
         checkDate.setHours(0, 0, 0, 0);
 
@@ -157,14 +184,14 @@ export class TodoListComponent {
         if (diffDays === 0) return 'Today';
         if (diffDays === 1) return 'Tomorrow';
 
-        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
     }
 
     isOverdue(dateStr: string | null): boolean {
         if (!dateStr) return false;
         const date = new Date(dateStr);
         const now = new Date();
-        now.setHours(0, 0, 0, 0); // compare against start of today
+        now.setHours(0, 0, 0, 0);
         return new Date(dateStr) < now;
     }
 
