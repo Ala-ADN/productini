@@ -113,19 +113,21 @@ export class QuoteGeneratorComponent {
   generateNewQuote(): void {
     this.clickCount.update(count => count + 1);
     
-    const filtered = this.filteredQuotes();
-    if (filtered.length === 0) return;
+    const allQuotes = this.quotes();
+    if (allQuotes.length === 0) return;
     
     let newIndex: number;
-    const allQuotes = this.quotes();
     
+    // Always pick from ALL quotes for true random experience
     do {
-      const randomFilteredIndex = Math.floor(Math.random() * filtered.length);
-      const randomQuote = filtered[randomFilteredIndex];
-      newIndex = allQuotes.findIndex(q => q === randomQuote);
-    } while (newIndex === this.currentQuoteIndex() && filtered.length > 1);
+      newIndex = Math.floor(Math.random() * allQuotes.length);
+    } while (newIndex === this.currentQuoteIndex() && allQuotes.length > 1);
     
     this.currentQuoteIndex.set(newIndex);
+    
+    // Update selected category to match the new quote's category
+    const newQuote = allQuotes[newIndex];
+    this.selectedCategory.set(newQuote.category);
   }
 
   nextQuote(): void {
