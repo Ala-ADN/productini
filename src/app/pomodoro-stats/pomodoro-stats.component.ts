@@ -19,18 +19,18 @@ interface BarData {
   template: `
     <div class="stats-container">
       <div class="stats-header">
-        <h3>Your Progress</h3>
+        <h3>Weekly Focus Time</h3>
         <div class="stats-summary">
           <div class="stat-item">
             <span class="stat-value">{{ stats().totalSessions }}</span>
             <span class="stat-label">Sessions</span>
           </div>
-          <div class="stat-item">
+          <div class="stat-item highlight">
             <span class="stat-value">{{ stats().focusTime }}</span>
             <span class="stat-label">Minutes</span>
           </div>
           <div class="stat-item">
-            <span class="stat-value">{{ stats().longestStreak }}</span>
+            <span class="stat-value">🔥 {{ stats().longestStreak }}</span>
             <span class="stat-label">Streak</span>
           </div>
         </div>
@@ -59,6 +59,7 @@ interface BarData {
                 [attr.height]="bar.height"
                 [class.bar-filled]="bar.value > 0"
                 class="bar"
+                rx="4"
               />
               <text
                 [attr.x]="bar.x + bar.width / 2"
@@ -69,26 +70,27 @@ interface BarData {
               </text>
               @if (bar.value > 0) {
                 <text [attr.x]="bar.x + bar.width / 2" [attr.y]="bar.y - 8" class="bar-value">
-                  {{ bar.value }}
+                  {{ bar.value }}m
                 </text>
               }
             </g>
           }
         </svg>
       </div>
-
-      <div class="keyboard-hints">
-        <span class="hint"><kbd>Ctrl</kbd> + <kbd>Space</kbd> Start/Pause</span>
-        <span class="hint"><kbd>Esc</kbd> Reset</span>
-      </div>
     </div>
   `,
   styles: [
     `
+      :host {
+        --primary: #9d2a2a;
+        --primary-dark: #532626;
+        --text-primary: #2b2d42;
+        --text-secondary: #8d99ae;
+        display: block;
+      }
+
       .stats-container {
-        margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid #edf2f4;
+        padding: 0;
       }
 
       .stats-header {
@@ -96,10 +98,9 @@ interface BarData {
 
         h3 {
           color: var(--text-primary);
-          font-size: 1rem;
+          font-size: 1.125rem;
           font-weight: 600;
           margin: 0 0 1rem 0;
-          text-align: center;
         }
       }
 
@@ -185,32 +186,15 @@ interface BarData {
         dominant-baseline: middle;
       }
 
-      .keyboard-hints {
-        display: flex;
-        gap: 1rem;
-        justify-content: center;
-        align-items: center;
-        flex-wrap: wrap;
-      }
+      .stat-item.highlight {
+        background: linear-gradient(135deg, #fa8c84 0%, #f48f8f 100%);
 
-      .hint {
-        display: flex;
-        align-items: center;
-        gap: 0.25rem;
-        font-size: 0.75rem;
-        color: var(--text-secondary);
-        font-weight: 500;
+        .stat-value {
+          color: white;
+        }
 
-        kbd {
-          background: white;
-          border: 1px solid #ddd;
-          border-radius: 4px;
-          padding: 0.125rem 0.375rem;
-          font-size: 0.7rem;
-          font-family: monospace;
-          font-weight: 600;
-          color: var(--text-primary);
-          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        .stat-label {
+          color: rgba(255, 255, 255, 0.9);
         }
       }
 
@@ -234,11 +218,6 @@ interface BarData {
 
         .chart-container {
           padding: 0.75rem;
-        }
-
-        .keyboard-hints {
-          flex-direction: column;
-          gap: 0.5rem;
         }
       }
     `,
@@ -266,12 +245,12 @@ export class PomodoroStatsComponent {
 
   bars = computed(() => {
     const data = this.stats().last7Days;
-    const maxValue = Math.max(...data.map((d) => d.sessions), 1);
+    const maxValue = Math.max(...data.map((d) => d.minutes), 1);
     const barWidth = (this.width - 2 * this.padding) / data.length - 8;
     const chartHeight = this.height - 2 * this.padding;
 
     return data.map((day, index) => {
-      const barHeight = (day.sessions / maxValue) * chartHeight * 0.8;
+      const barHeight = (day.minutes / maxValue) * chartHeight * 0.8;
       const x = this.padding + index * ((this.width - 2 * this.padding) / data.length) + 4;
       const y = this.height - this.padding - barHeight;
 
@@ -279,9 +258,9 @@ export class PomodoroStatsComponent {
         x,
         y,
         width: barWidth,
-        height: barHeight,
+        height: Math.max(barHeight, 2), // Minimum height for visibility
         label: day.date,
-        value: day.sessions,
+        value: day.minutes,
       };
     });
   });

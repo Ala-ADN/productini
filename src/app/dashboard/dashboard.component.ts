@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FloatingTimerComponent } from '../floating-timer/floating-timer.component';
+import { PomodoroStatsComponent } from '../pomodoro-stats/pomodoro-stats.component';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [RouterLink, CommonModule, FloatingTimerComponent],
+  imports: [RouterLink, CommonModule, FloatingTimerComponent, PomodoroStatsComponent],
   templateUrl: './dashboard.component.html',
   styleUrl: './dashboard.component.css',
 })

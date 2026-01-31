@@ -3,12 +3,11 @@ import { CommonModule } from '@angular/common';
 import { Location } from '@angular/common';
 import { PomodoroService } from '../services/pomodoro.service';
 import { PomodoroShortcutsDirective } from '../directives/pomodoro-shortcuts.directive';
-import { PomodoroStatsComponent } from '../pomodoro-stats/pomodoro-stats.component';
 
 @Component({
   selector: 'app-pomodoro-widget',
   standalone: true,
-  imports: [CommonModule, PomodoroShortcutsDirective, PomodoroStatsComponent],
+  imports: [CommonModule, PomodoroShortcutsDirective],
   templateUrl: './pomodoro-widget.component.html',
   styleUrls: ['./pomodoro-widget.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
