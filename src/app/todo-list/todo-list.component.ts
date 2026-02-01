@@ -1,7 +1,6 @@
 import { Component, computed, effect, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
-import { RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { liveQuery } from 'dexie';
@@ -13,7 +12,7 @@ type FilterType = 'all' | 'active' | 'completed';
 @Component({
     selector: 'app-todo-list',
     standalone: true,
-    imports: [FormsModule, CommonModule, RouterLink, DragDropModule],
+    imports: [FormsModule, CommonModule, DragDropModule],
     templateUrl: './todo-list.component.html',
     styleUrl: './todo-list.component.css',
 })
