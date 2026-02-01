@@ -10,6 +10,7 @@ export interface Todo {
     completed: boolean;
     priority: Priority;
     createdAt: number;
+    dueDate: string | null; // ISO Date string YYYY-MM-DD
 }
 
 type FilterType = 'all' | 'active' | 'completed';
@@ -23,11 +24,15 @@ type FilterType = 'all' | 'active' | 'completed';
 })
 export class TodoListComponent {
     todos = signal<Todo[]>([]);
+
+    // Inputs
     newTodoText = signal('');
     newTodoPriority = signal<Priority>('medium');
-    currentFilter = signal<FilterType>('all');
+    newTodoDate = signal('');
+    searchQuery = signal('');
 
-    // Track which item is being edited
+    // State
+    currentFilter = signal<FilterType>('all');
     editingId = signal<number | null>(null);
 
     constructor() {
@@ -35,8 +40,11 @@ export class TodoListComponent {
         if (saved) {
             try {
                 const parsed = JSON.parse(saved);
-                // Migration: Ensure all have priority
-                this.todos.set(parsed.map((t: any) => ({ ...t, priority: t.priority || 'medium' })));
+                this.todos.set(parsed.map((t: any) => ({
+                    ...t,
+                    priority: t.priority || 'medium',
+                    dueDate: t.dueDate || null
+                })));
             } catch (e) {
                 console.error('Failed to load todos', e);
             }
@@ -57,11 +65,14 @@ export class TodoListComponent {
                     completed: false,
                     priority: this.newTodoPriority(),
                     createdAt: Date.now(),
+                    dueDate: this.newTodoDate() || null,
                 },
                 ...todos,
             ]);
+            // Reset inputs
             this.newTodoText.set('');
             this.newTodoPriority.set('medium');
+            this.newTodoDate.set('');
         }
     }
 
@@ -79,6 +90,7 @@ export class TodoListComponent {
         this.todos.update((todos) => todos.filter((t) => !t.completed));
     }
 
+    // Editing
     startEdit(id: number) {
         if (!this.todos().find(t => t.id === id)?.completed) {
             this.editingId.set(id);
@@ -88,7 +100,6 @@ export class TodoListComponent {
     saveEdit(id: number, event: Event) {
         const input = event.target as HTMLInputElement;
         const newText = input.value.trim();
-
         if (newText) {
             this.todos.update(todos =>
                 todos.map(t => t.id === id ? { ...t, text: newText } : t)
@@ -101,30 +112,60 @@ export class TodoListComponent {
         this.editingId.set(null);
     }
 
-    setFilter(filter: FilterType) {
-        this.currentFilter.set(filter);
-    }
+    // Setters
+    setFilter(filter: FilterType) { this.currentFilter.set(filter); }
+    setPriority(priority: Priority) { this.newTodoPriority.set(priority); }
 
-    setPriority(priority: Priority) {
-        this.newTodoPriority.set(priority);
-    }
-
+    // Search & Filter Logic
     filteredTodos = computed(() => {
         const filter = this.currentFilter();
-        const todos = this.todos();
+        const query = this.searchQuery().toLowerCase();
+        let todos = this.todos();
 
-        // Sort specific logic: High priority usually comes first, but user didn't ask for sort. 
-        // Let's keep manual sort order but just filter.
+        // 1. Apply Search
+        if (query) {
+            todos = todos.filter(t => t.text.toLowerCase().includes(query));
+        }
 
+        // 2. Apply Tabs
         switch (filter) {
             case 'active':
-                return todos.filter((t) => !t.completed);
+                return todos.filter(t => !t.completed);
             case 'completed':
-                return todos.filter((t) => t.completed);
+                return todos.filter(t => t.completed);
             default:
                 return todos;
         }
     });
+
+    // Helpers for Display
+    getDueDateLabel(dateStr: string | null): string {
+        if (!dateStr) return '';
+        const date = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        // Reset date part to compare only dates
+        const checkDate = new Date(date);
+        checkDate.setHours(0, 0, 0, 0); // Treat as local date for simplicity
+
+        const diffTime = checkDate.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays < 0) return 'Overdue';
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Tomorrow';
+
+        return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    }
+
+    isOverdue(dateStr: string | null): boolean {
+        if (!dateStr) return false;
+        const date = new Date(dateStr);
+        const now = new Date();
+        now.setHours(0, 0, 0, 0);
+        return new Date(dateStr) < now;
+    }
 
     completedCount = computed(() => this.todos().filter((t) => t.completed).length);
     totalCount = computed(() => this.todos().length);

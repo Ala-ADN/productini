@@ -1,7 +1,14 @@
 <div class="todo-container">
     <div class="todo-header">
-        <h1>✨ My Todo List</h1>
-        <p class="stats">{{ completedCount() }} of {{ totalCount() }} completed</p>
+        <h1>✨ My Planner</h1>
+        <div class="header-controls">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" [ngModel]="searchQuery()" (ngModelChange)="searchQuery.set($event)"
+                    placeholder="Search items..." />
+            </div>
+            <p class="stats">{{ completedCount() }} / {{ totalCount() }} done</p>
+        </div>
     </div>
 
     <div class="todo-input-section">
@@ -14,11 +21,16 @@
                 title="Low Priority"></button>
         </div>
 
-        <input type="text" [ngModel]="newTodoText()" (ngModelChange)="newTodoText.set($event)" (keyup.enter)="addTodo()"
-            placeholder="What needs to be done?" class="todo-input" aria-label="New todo text" />
+        <div class="input-group">
+            <input type="text" [ngModel]="newTodoText()" (ngModelChange)="newTodoText.set($event)"
+                (keyup.enter)="addTodo()" placeholder="Add a new task..." class="todo-input-text"
+                aria-label="New todo text" />
+            <input type="date" [ngModel]="newTodoDate()" (ngModelChange)="newTodoDate.set($event)"
+                class="todo-input-date" aria-label="Due date" />
+        </div>
+
         <button (click)="addTodo()" class="add-button" aria-label="Add todo">
             <span class="add-icon">+</span>
-            Add
         </button>
     </div>
 
@@ -28,7 +40,7 @@
                 All
             </button>
             <button [class.active]="currentFilter() === 'active'" (click)="setFilter('active')" class="filter-btn">
-                Active
+                Ative
             </button>
             <button [class.active]="currentFilter() === 'completed'" (click)="setFilter('completed')"
                 class="filter-btn">
@@ -38,26 +50,26 @@
 
         @if (hasCompleted()) {
         <button class="clear-btn" (click)="clearCompleted()">
-            Clear Completed
+            Clear Done
         </button>
         }
     </div>
 
     <div class="todo-list">
-        @if (filteredTodos().length === 0 && todos().length === 0) {
+        @if (filteredTodos().length === 0) {
         <div class="empty-state">
-            <div class="empty-icon">📝</div>
-            <p>No todos yet. Add one to get started!</p>
-        </div>
-        } @else if (filteredTodos().length === 0) {
-        <div class="empty-state">
-            <div class="empty-icon">🔍</div>
-            <p>No {{ currentFilter() }} todos found.</p>
+            <div class="empty-icon">
+                {{ searchQuery() ? '🔍' : '📝' }}
+            </div>
+            <p>
+                {{ searchQuery() ? 'No matches found.' : 'No tasks here. Add one!' }}
+            </p>
         </div>
         }
 
         @for (todo of filteredTodos(); track todo.id) {
         <div class="todo-item" [class.completed]="todo.completed" [class.priority-high]="todo.priority === 'high'">
+
             <label class="todo-checkbox-wrapper">
                 <input type="checkbox" [checked]="todo.completed" (change)="toggleTodo(todo.id)" />
                 <span class="checkmark" [class.p-high]="todo.priority === 'high'"
@@ -70,12 +82,21 @@
                     (keyup.enter)="saveEdit(todo.id, $event)" (keyup.escape)="cancelEdit()" class="edit-input"
                     autoFocus />
                 } @else {
-                <span class="todo-text" (dblclick)="startEdit(todo.id)" title="Double click to edit">
-                    {{ todo.text }}
-                </span>
-                <span class="priority-badge" [ngClass]="todo.priority">
-                    {{ todo.priority }}
-                </span>
+                <div class="todo-main-row">
+                    <span class="todo-text" (dblclick)="startEdit(todo.id)" title="Double click to edit">
+                        {{ todo.text }}
+                    </span>
+                </div>
+                <div class="todo-meta-row">
+                    <span class="priority-badge" [ngClass]="todo.priority">
+                        {{ todo.priority }}
+                    </span>
+                    @if (todo.dueDate) {
+                    <span class="date-badge" [class.overdue]="isOverdue(todo.dueDate) && !todo.completed">
+                        📅 {{ getDueDateLabel(todo.dueDate) }}
+                    </span>
+                    }
+                </div>
                 }
             </div>
 
