@@ -222,6 +222,20 @@ export class QuoteGeneratorComponent {
     window.open(url, 'twitter-share', 'width=600,height=400');
   }
 
+  shareOnInstagram(): void {
+    const quote = this.currentQuote();
+    const text = `"${quote.text}" - ${quote.author}`;
+    
+    // Copy to clipboard
+    navigator.clipboard.writeText(text).then(() => {
+      // Show alert
+      alert('Quote copied to clipboard! ✓\n\nPaste it in your Instagram post or story.');
+      
+      // Open Instagram in new tab
+      window.open('https://www.instagram.com/', 'instagram-share');
+    });
+  }
+
   toggleAddQuoteForm(): void {
     this.showAddQuoteForm.update(state => !state);
     // Reset form when closing
