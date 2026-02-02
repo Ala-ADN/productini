@@ -39,13 +39,31 @@ export interface HabitMetadata {
     lastResetDate: string; // ISO date string (YYYY-MM-DD)
 }
 
+export interface Quote {
+    id?: number;
+    text: string;
+    author: string;
+    category: string;
+    createdAt: number;
+    isFavorite: boolean;
+}
+
 export class AppDB extends Dexie {
     todos!: Table<Todo, number>;
     habits!: Table<HabitRecord, number>;
     habitMetadata!: Table<HabitMetadata, string>;
+    quotes!: Table<Quote, number>;
 
     constructor() {
         super('ProdHubDB');
+
+        // Version 4: Added quotes table
+        this.version(4).stores({
+            todos: '++id, completed, priority, dueDate, order',
+            habits: '++id, name, createdAt, order',
+            habitMetadata: 'id',
+            quotes: '++id, category, isFavorite, createdAt'
+        });
 
         // Version 3: Added habits and habitMetadata tables
         this.version(3).stores({

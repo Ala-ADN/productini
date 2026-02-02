@@ -7,7 +7,7 @@
     </div>
     <div class="stat-item">
       <span class="stat-label">Quote:</span>
-      <span class="stat-value">{{ currentQuoteIndex() + 1 }}/{{ quoteCount() }}</span>
+      <span class="stat-value">{{ currentQuoteNumber() }}/{{ quoteCount() }}</span>
     </div>
   </div>
 
@@ -38,26 +38,23 @@
       <button 
         class="category-btn"
         [class.active]="selectedCategory() === category"
-        (click)="selectCategory(category)">
+        (click)="selectCategory($any(category))">
         {{ category }}
       </button>
     }
   </div>
-
-  <!-- Progress Bar -->
-  <div class="progress-bar-container">
-    <div class="progress-bar" [style.width.%]="progressPercentage()"></div>
-  </div>
   
   <!-- Quote Container -->
-  <div class="quote-container">
-    <div class="quote-icon">❝</div>
-    <p class="quote-text">{{ currentQuote().text }}</p>
-    <div class="quote-meta">
-      <span class="quote-author">— {{ currentQuote().author }}</span>
-      <span class="quote-category">#{{ currentQuote().category }}</span>
+  @if (currentQuote(); as quote) {
+    <div class="quote-container">
+      <div class="quote-icon">❝</div>
+      <p class="quote-text">{{ quote.text }}</p>
+      <div class="quote-meta">
+        <span class="quote-author">— {{ quote.author }}</span>
+        <span class="quote-category">#{{ quote.category }}</span>
+      </div>
     </div>
-  </div>
+  }
 
   <!-- Navigation Controls -->
   <div class="nav-controls">
@@ -144,9 +141,9 @@
   }
 
   <!-- Favorites Count -->
-  @if (favoriteQuotes().length > 0) {
+  @if (favoriteCount() > 0) {
     <div class="favorites-count">
-      ⭐ {{ favoriteQuotes().length }} favorite{{ favoriteQuotes().length !== 1 ? 's' : '' }}
+      ⭐ {{ favoriteCount() }} favorite{{ favoriteCount() !== 1 ? 's' : '' }}
     </div>
   }
 </div>

@@ -1,13 +1,17 @@
-import { Component, signal, computed, effect, inject, DestroyRef } from '@angular/core';
+import { Component, OnInit, signal, computed, effect, inject, DestroyRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { interval } from 'rxjs';
+import { liveQuery } from 'dexie';
+import { QuoteService } from './quote.service';
+import { ClipboardService } from './clipboard.service';
+import { SpeechService } from './speech.service';
+import { ShareService } from './share.service';
+import type { Quote } from '../db';
 
-interface Quote {
-  text: string;
-  author: string;
-  category: string;
-}
+const AUTOPLAY_INTERVAL_MS = 5000;
+const SPEECH_RATE = 0.85;
+const SPEECH_PITCH = 1.05;
 
 @Component({
   selector: 'app-quote-generator',
@@ -16,37 +20,22 @@ interface Quote {
   templateUrl: './quote-generator.component.html',
   styleUrl: './quote-generator.component.css'
 })
-export class QuoteGeneratorComponent {
+export class QuoteGeneratorComponent implements OnInit {
   private destroyRef = inject(DestroyRef);
-  
-  // Signals for reactive state management
-  quotes = signal<Quote[]>([
-    { text: "The only way to do great work is to love what you do.", author: "Steve Jobs", category: "Work" },
-    { text: "Believe you can and you're halfway there.", author: "Theodore Roosevelt", category: "Belief" },
-    { text: "Success is not final, failure is not fatal: it is the courage to continue that counts.", author: "Winston Churchill", category: "Success" },
-    { text: "The future belongs to those who believe in the beauty of their dreams.", author: "Eleanor Roosevelt", category: "Dreams" },
-    { text: "It does not matter how slowly you go as long as you do not stop.", author: "Confucius", category: "Persistence" },
-    { text: "Everything you've ever wanted is on the other side of fear.", author: "George Addair", category: "Fear" },
-    { text: "Believe in yourself. You are braver than you think, more talented than you know, and capable of more than you imagine.", author: "Roy T. Bennett", category: "Self-belief" },
-    { text: "I learned that courage was not the absence of fear, but the triumph over it.", author: "Nelson Mandela", category: "Courage" },
-    { text: "The only impossible journey is the one you never begin.", author: "Tony Robbins", category: "Beginning" },
-    { text: "Your limitation—it's only your imagination.", author: "Unknown", category: "Imagination" },
-    { text: "Push yourself, because no one else is going to do it for you.", author: "Unknown", category: "Motivation" },
-    { text: "Great things never come from comfort zones.", author: "Unknown", category: "Growth" },
-    { text: "Dream it. Wish it. Do it.", author: "Unknown", category: "Action" },
-    { text: "Success doesn't just find you. You have to go out and get it.", author: "Unknown", category: "Success" },
-    { text: "The harder you work for something, the greater you'll feel when you achieve it.", author: "Unknown", category: "Achievement" },
-    { text: "Dream bigger. Do bigger.", author: "Unknown", category: "Dreams" },
-    { text: "Don't stop when you're tired. Stop when you're done.", author: "Unknown", category: "Persistence" },
-    { text: "Wake up with determination. Go to bed with satisfaction.", author: "Unknown", category: "Dedication" },
-    { text: "Do something today that your future self will thank you for.", author: "Unknown", category: "Action" },
-    { text: "Little things make big days.", author: "Unknown", category: "Gratitude" }
-  ]);
+  private quoteService = inject(QuoteService);
+  private clipboardService = inject(ClipboardService);
+  private speechService = inject(SpeechService);
+  private shareService = inject(ShareService);
 
-  currentQuoteIndex = signal<number>(0);
+  // Signals for reactive state management
+  private quotesSignal = toSignal(liveQuery(() => this.quoteService.getAllQuotes()), { initialValue: [] as Quote[] });
+  
+  // Type-safe quotes accessor
+  quotes = computed(() => this.quotesSignal() as Quote[]);
+
+  currentQuoteId = signal<number | null>(null);
   clickCount = signal<number>(0);
   isAutoPlay = signal<boolean>(false);
-  favoriteQuotes = signal<number[]>([]);
   selectedCategory = signal<string>('All');
   showAddQuoteForm = signal<boolean>(false);
   newQuoteText = signal<string>('');
@@ -54,12 +43,25 @@ export class QuoteGeneratorComponent {
   newQuoteCategory = signal<string>('');
 
   // Computed signals - derived state
-  currentQuote = computed(() => this.quotes()[this.currentQuoteIndex()]);
+  currentQuote = computed(() => {
+    const quotes = this.quotes();
+    const id = this.currentQuoteId();
+    if (id === null || quotes.length === 0) return null;
+    return quotes.find((q: Quote) => q.id === id) || quotes[0];
+  });
+
+  currentQuoteNumber = computed(() => {
+    const quotes = this.quotes();
+    const current = this.currentQuote();
+    if (!current) return 0;
+    const index = quotes.findIndex((q: Quote) => q.id === current.id);
+    return index + 1;
+  });
   
   quoteCount = computed(() => this.quotes().length);
   
   categories = computed(() => {
-    const cats = new Set(this.quotes().map(q => q.category));
+    const cats = new Set(this.quotes().map((q: Quote) => q.category));
     return ['All', ...Array.from(cats).sort()];
   });
 
@@ -68,45 +70,36 @@ export class QuoteGeneratorComponent {
     if (category === 'All') {
       return this.quotes();
     }
-    return this.quotes().filter(q => q.category === category);
+    return this.quotes().filter((q: Quote) => q.category === category);
   });
 
-  isFavorite = computed(() => 
-    this.favoriteQuotes().includes(this.currentQuoteIndex())
-  );
+  isFavorite = computed(() => {
+    const quote = this.currentQuote();
+    return quote?.isFavorite || false;
+  });
 
-  progressPercentage = computed(() => 
-    ((this.currentQuoteIndex() + 1) / this.quoteCount()) * 100
-  );
+  favoriteCount = computed(() => {
+    return this.quotes().filter((q: Quote) => q.isFavorite).length;
+  });
 
   // Effects - side effects based on signal changes
   constructor() {
-    // Log when quote changes
-    effect(() => {
-      const quote = this.currentQuote();
-      console.log(`Current quote: "${quote.text}" by ${quote.author}`);
-    });
-
-    // Auto-save favorites to localStorage
-    effect(() => {
-      const favorites = this.favoriteQuotes();
-      localStorage.setItem('favoriteQuotes', JSON.stringify(favorites));
-    });
-
-    // Load favorites from localStorage
-    const savedFavorites = localStorage.getItem('favoriteQuotes');
-    if (savedFavorites) {
-      this.favoriteQuotes.set(JSON.parse(savedFavorites));
-    }
-
     // Auto-play functionality
-    interval(5000)
+    interval(AUTOPLAY_INTERVAL_MS)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe(() => {
         if (this.isAutoPlay()) {
           this.generateNewQuote();
         }
       });
+  }
+
+  async ngOnInit(): Promise<void> {
+    // Set first quote as current
+    const quotes = await this.quoteService.getAllQuotes();
+    if (quotes.length > 0) {
+      this.currentQuoteId.set(quotes[0].id!);
+    }
   }
 
   // Methods
@@ -116,17 +109,18 @@ export class QuoteGeneratorComponent {
     const allQuotes = this.quotes();
     if (allQuotes.length === 0) return;
     
-    let newIndex: number;
+    let newQuote: Quote;
+    const currentId = this.currentQuoteId();
     
     // Always pick from ALL quotes for true random experience
     do {
-      newIndex = Math.floor(Math.random() * allQuotes.length);
-    } while (newIndex === this.currentQuoteIndex() && allQuotes.length > 1);
+      const randomIndex = Math.floor(Math.random() * allQuotes.length);
+      newQuote = allQuotes[randomIndex];
+    } while (newQuote.id === currentId && allQuotes.length > 1);
     
-    this.currentQuoteIndex.set(newIndex);
+    this.currentQuoteId.set(newQuote.id!);
     
     // Update selected category to match the new quote's category
-    const newQuote = allQuotes[newIndex];
     this.selectedCategory.set(newQuote.category);
   }
 
@@ -135,7 +129,7 @@ export class QuoteGeneratorComponent {
     if (filtered.length === 0) return;
     
     const currentQuote = this.currentQuote();
-    let currentIndexInFiltered = filtered.indexOf(currentQuote);
+    let currentIndexInFiltered = filtered.findIndex((q: Quote) => q.id === currentQuote?.id);
     
     // If current quote not in filtered list, start from beginning
     if (currentIndexInFiltered === -1) {
@@ -144,8 +138,7 @@ export class QuoteGeneratorComponent {
     
     const nextIndexInFiltered = (currentIndexInFiltered + 1) % filtered.length;
     const nextQuote = filtered[nextIndexInFiltered];
-    const newIndex = this.quotes().indexOf(nextQuote);
-    this.currentQuoteIndex.set(newIndex);
+    this.currentQuoteId.set(nextQuote.id!);
     this.clickCount.update(count => count + 1);
   }
 
@@ -154,7 +147,7 @@ export class QuoteGeneratorComponent {
     if (filtered.length === 0) return;
     
     const currentQuote = this.currentQuote();
-    let currentIndexInFiltered = filtered.indexOf(currentQuote);
+    let currentIndexInFiltered = filtered.findIndex((q: Quote) => q.id === currentQuote?.id);
     
     // If current quote not in filtered list, start from end
     if (currentIndexInFiltered === -1) {
@@ -163,20 +156,15 @@ export class QuoteGeneratorComponent {
     
     const previousIndexInFiltered = (currentIndexInFiltered - 1 + filtered.length) % filtered.length;
     const previousQuote = filtered[previousIndexInFiltered];
-    const newIndex = this.quotes().indexOf(previousQuote);
-    this.currentQuoteIndex.set(newIndex);
+    this.currentQuoteId.set(previousQuote.id!);
     this.clickCount.update(count => count + 1);
   }
 
-  toggleFavorite(): void {
-    const currentIndex = this.currentQuoteIndex();
-    this.favoriteQuotes.update(favorites => {
-      if (favorites.includes(currentIndex)) {
-        return favorites.filter(idx => idx !== currentIndex);
-      } else {
-        return [...favorites, currentIndex];
-      }
-    });
+  async toggleFavorite(): Promise<void> {
+    const quote = this.currentQuote();
+    if (quote?.id) {
+      await this.quoteService.toggleFavorite(quote.id);
+    }
   }
 
   toggleAutoPlay(): void {
@@ -188,90 +176,69 @@ export class QuoteGeneratorComponent {
     // Reset to first quote of filtered category
     if (this.filteredQuotes().length > 0) {
       const firstQuote = this.filteredQuotes()[0];
-      const newIndex = this.quotes().indexOf(firstQuote);
-      this.currentQuoteIndex.set(newIndex);
+      this.currentQuoteId.set(firstQuote.id!);
     }
   }
 
-  copyToClipboard(): void {
+  async copyToClipboard(): Promise<void> {
     const quote = this.currentQuote();
+    if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    navigator.clipboard.writeText(text);
+    const success = await this.clipboardService.copyToClipboard(text);
+    // TODO: Add user feedback (toast/snackbar) based on success
   }
 
-  shareQuote(): void {
+  async shareQuote(): Promise<void> {
     const quote = this.currentQuote();
+    if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    if (navigator.share) {
-      navigator.share({
-        title: 'Motivational Quote',
-        text: text
-      });
-    }
+    const success = await this.shareService.share({
+      title: 'Motivational Quote',
+      text: text
+    });
+    // TODO: Add user feedback if native share is not supported
   }
 
   shareOnFacebook(): void {
     const quote = this.currentQuote();
+    if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    const url = `https://www.facebook.com/sharer/sharer.php?quote=${encodeURIComponent(text)}`;
-    window.open(url, 'facebook-share', 'width=600,height=400');
+    this.shareService.shareOnFacebook(text);
   }
 
   shareOnTwitter(): void {
     const quote = this.currentQuote();
+    if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    const url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`;
-    window.open(url, 'twitter-share', 'width=600,height=400');
+    this.shareService.shareOnTwitter(text);
   }
 
-  shareOnInstagram(): void {
+  async shareOnInstagram(): Promise<void> {
     const quote = this.currentQuote();
+    if (!quote) return;
     const text = `"${quote.text}" - ${quote.author}`;
-    
-    // Copy to clipboard
-    navigator.clipboard.writeText(text).then(() => {
-      // Open Instagram in new tab
-      window.open('https://www.instagram.com/', 'instagram-share');
-    });
+
+    await this.shareService.prepareInstagramShare(text, this.clipboardService);
+    // TODO: Add user feedback that text was copied
   }
 
-  readQuote(): void {
+  async readQuote(): Promise<void> {
     const quote = this.currentQuote();
+    if (!quote) return;
+
     const text = `${quote.text}. By ${quote.author}`;
-    
-    // Cancel any ongoing speech
-    window.speechSynthesis.cancel();
-    
-    // Create speech synthesis
-    const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Get available voices and select the best quality one
-    const voices = window.speechSynthesis.getVoices();
-    
-    // Prefer high-quality voices (Google, Microsoft, or native premium voices)
-    const preferredVoice = voices.find(voice => 
-      voice.name.includes('Google') || 
-      voice.name.includes('Premium') ||
-      voice.name.includes('Enhanced') ||
-      voice.name.includes('Natural') ||
-      (voice.lang.startsWith('en') && voice.localService === false)
-    ) || voices.find(voice => voice.lang.startsWith('en'));
-    
-    if (preferredVoice) {
-      utterance.voice = preferredVoice;
+
+    try {
+      await this.speechService.speak(text, {
+        rate: SPEECH_RATE,
+        pitch: SPEECH_PITCH,
+        volume: 1
+      });
+      // TODO: Add visual feedback when speech starts
+    } catch (error) {
+      console.error('Failed to read quote:', error);
+      // TODO: Show user-friendly error message
     }
-    
-    // Enhanced speech parameters for better quality
-    utterance.rate = 0.85; // Slower for clarity and emphasis
-    utterance.pitch = 1.05; // Slightly higher for warmth
-    utterance.volume = 1;
-    
-    // Add natural pauses by inserting commas if not present
-    const textWithPauses = text.replace(/([.!?])\s+/g, '$1 ... ');
-    utterance.text = textWithPauses;
-    
-    // Speak the quote
-    window.speechSynthesis.speak(utterance);
   }
 
   toggleAddQuoteForm(): void {
@@ -284,50 +251,68 @@ export class QuoteGeneratorComponent {
     }
   }
 
-  addCustomQuote(): void {
+  async addCustomQuote(): Promise<void> {
     const text = this.newQuoteText().trim();
     const author = this.newQuoteAuthor().trim() || 'Anonymous';
     const category = this.newQuoteCategory().trim() || 'Custom';
 
     if (!text) return;
 
-    const newQuote: Quote = { text, author, category };
-    this.quotes.update(quotes => [...quotes, newQuote]);
+    const newQuoteId = await this.quoteService.addQuote({ 
+      text, 
+      author, 
+      category,
+      createdAt: Date.now(),
+      isFavorite: false
+    });
     
     // Navigate to the new quote
-    this.currentQuoteIndex.set(this.quotes().length - 1);
+    this.currentQuoteId.set(newQuoteId);
     
     // Reset form and close
     this.toggleAddQuoteForm();
   }
 
-  deleteQuote(): void {
+  async deleteQuote(): Promise<void> {
     const allQuotes = this.quotes();
     if (allQuotes.length <= 1) {
       return;
     }
 
-    const currentIndex = this.currentQuoteIndex();
-    const quote = allQuotes[currentIndex];
+    const quote = this.currentQuote();
+    if (!quote || !quote.id) return;
+
+    // Find next quote before deletion
+    const filtered = this.filteredQuotes();
+    const currentIndex = filtered.findIndex((q: Quote) => q.id === quote.id);
+    let nextQuote: Quote | undefined;
     
-    if (!confirm(`Delete this quote?\n\n"${quote.text}" - ${quote.author}`)) {
-      return;
+    if (currentIndex < filtered.length - 1) {
+      nextQuote = filtered[currentIndex + 1];
+    } else if (filtered.length > 1) {
+      nextQuote = filtered[currentIndex - 1];
+    } else if (allQuotes.length > 1) {
+      nextQuote = allQuotes.find((q: Quote) => q.id !== quote.id);
     }
 
-    // Remove from favorites if it was favorited
-    this.favoriteQuotes.update(favorites => 
-      favorites.filter(idx => idx !== currentIndex)
-        .map(idx => idx > currentIndex ? idx - 1 : idx)
-    );
+    // Remove the quote from database
+    await this.quoteService.deleteQuote(quote.id);
 
-    // Remove the quote
-    this.quotes.update(quotes => quotes.filter((_, idx) => idx !== currentIndex));
-
-    // Navigate to appropriate quote
-    if (currentIndex >= this.quotes().length) {
-      // If we deleted the last quote, go to the new last quote
-      this.currentQuoteIndex.set(this.quotes().length - 1);
+    // Check if the selected category still exists after deletion
+    const updatedCategories = this.categories();
+    if (!updatedCategories.includes(this.selectedCategory())) {
+      this.selectedCategory.set('All');
     }
-    // If we deleted a middle quote, current index now points to the next quote
+
+    // Navigate to next quote
+    if (nextQuote?.id) {
+      this.currentQuoteId.set(nextQuote.id);
+    } else {
+      // Fallback to first available quote
+      const remainingQuotes = await this.quoteService.getAllQuotes();
+      if (remainingQuotes.length > 0) {
+        this.currentQuoteId.set(remainingQuotes[0].id!);
+      }
+    }
   }
 }
