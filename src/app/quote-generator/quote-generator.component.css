@@ -313,6 +313,16 @@
   transform: translateY(0);
 }
 
+.delete-btn {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.4);
+}
+
+.delete-btn:hover {
+  background: rgba(244, 67, 54, 0.3);
+  border-color: rgba(244, 67, 54, 0.6);
+}
+
 .generate-btn {
   flex: 1;
   padding: 1rem 2rem;

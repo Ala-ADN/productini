@@ -303,4 +303,35 @@ export class QuoteGeneratorComponent {
     // Reset form and close
     this.toggleAddQuoteForm();
   }
+
+  deleteQuote(): void {
+    const allQuotes = this.quotes();
+    if (allQuotes.length <= 1) {
+      alert('Cannot delete the last quote!');
+      return;
+    }
+
+    const currentIndex = this.currentQuoteIndex();
+    const quote = allQuotes[currentIndex];
+    
+    if (!confirm(`Delete this quote?\n\n"${quote.text}" - ${quote.author}`)) {
+      return;
+    }
+
+    // Remove from favorites if it was favorited
+    this.favoriteQuotes.update(favorites => 
+      favorites.filter(idx => idx !== currentIndex)
+        .map(idx => idx > currentIndex ? idx - 1 : idx)
+    );
+
+    // Remove the quote
+    this.quotes.update(quotes => quotes.filter((_, idx) => idx !== currentIndex));
+
+    // Navigate to appropriate quote
+    if (currentIndex >= this.quotes().length) {
+      // If we deleted the last quote, go to the new last quote
+      this.currentQuoteIndex.set(this.quotes().length - 1);
+    }
+    // If we deleted a middle quote, current index now points to the next quote
+  }
 }

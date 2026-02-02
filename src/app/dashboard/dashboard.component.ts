@@ -2,11 +2,12 @@ import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HabitCounter } from '../components/habit-counter/habit-counter';
 import { TodoListComponent } from '../todo-list/todo-list.component';
+import { QuoteGeneratorComponent } from '../quote-generator/quote-generator.component';
 
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, HabitCounter, TodoListComponent],
+    imports: [CommonModule, HabitCounter, TodoListComponent, QuoteGeneratorComponent],
     templateUrl: './dashboard.component.html',
     styleUrl: './dashboard.component.css'
 })
