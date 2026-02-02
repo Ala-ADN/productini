@@ -230,9 +230,6 @@ export class QuoteGeneratorComponent {
     
     // Copy to clipboard
     navigator.clipboard.writeText(text).then(() => {
-      // Show alert
-      alert('Quote copied to clipboard! ✓\n\nPaste it in your Instagram post or story.');
-      
       // Open Instagram in new tab
       window.open('https://www.instagram.com/', 'instagram-share');
     });
@@ -307,7 +304,6 @@ export class QuoteGeneratorComponent {
   deleteQuote(): void {
     const allQuotes = this.quotes();
     if (allQuotes.length <= 1) {
-      alert('Cannot delete the last quote!');
       return;
     }
 
