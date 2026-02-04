@@ -4,15 +4,18 @@ import { SpeechService } from './speech.service';
 describe('SpeechService', () => {
   let service: SpeechService;
   let mockSpeechSynthesis: jasmine.SpyObj<SpeechSynthesis>;
-  let mockUtterance: jasmine.SpyObj<SpeechSynthesisUtterance>;
   let mockVoices: SpeechSynthesisVoice[];
+  let originalSpeechSynthesisUtterance: typeof SpeechSynthesisUtterance;
 
   beforeEach(() => {
+    // Save original SpeechSynthesisUtterance
+    originalSpeechSynthesisUtterance = window.SpeechSynthesisUtterance;
+
     // Create mock voices
     mockVoices = [
-      createMockVoice('English US', 'en-US', false, 'Basic Voice'),
-      createMockVoice('English US Google', 'en-US', false, 'Google US English'),
-      createMockVoice('English UK Premium', 'en-GB', false, 'Premium UK Voice'),
+      createMockVoice('English US', 'en-US', true, 'Basic Voice'),
+      createMockVoice('Google US English', 'en-US', false, 'Google US English'),
+      createMockVoice('Premium UK Voice', 'en-GB', false, 'Premium UK Voice'),
     ];
 
     // Create mock SpeechSynthesis
@@ -36,22 +39,31 @@ describe('SpeechService', () => {
       configurable: true
     });
 
-    // Mock SpeechSynthesisUtterance constructor
-    mockUtterance = jasmine.createSpyObj('SpeechSynthesisUtterance', [], {
-      text: '',
-      voice: null,
-      rate: 1,
-      pitch: 1,
-      volume: 1,
-      onstart: null,
-      onerror: null,
-      onend: null
-    });
+    // Mock SpeechSynthesisUtterance constructor to allow mock voices
+    (window as any).SpeechSynthesisUtterance = class MockUtterance {
+      text: string;
+      voice: SpeechSynthesisVoice | null = null;
+      rate = 1;
+      pitch = 1;
+      volume = 1;
+      onstart: ((ev: Event) => void) | null = null;
+      onerror: ((ev: SpeechSynthesisErrorEvent) => void) | null = null;
+      onend: ((ev: Event) => void) | null = null;
+
+      constructor(text?: string) {
+        this.text = text || '';
+      }
+    };
 
     TestBed.configureTestingModule({
       providers: [SpeechService]
     });
     service = TestBed.inject(SpeechService);
+  });
+
+  afterEach(() => {
+    // Restore original SpeechSynthesisUtterance
+    (window as any).SpeechSynthesisUtterance = originalSpeechSynthesisUtterance;
   });
 
   function createMockVoice(
@@ -338,7 +350,7 @@ describe('SpeechService', () => {
     });
 
     it('should fallback to basic voice if no premium voices available', async () => {
-      const basicVoices = [createMockVoice('Basic', 'en-US', true, 'basic')];
+      const basicVoices = [createMockVoice('English Basic', 'en-US', true, 'basic')];
       mockSpeechSynthesis.getVoices.and.returnValue(basicVoices);
 
       const newService = new SpeechService();
@@ -352,7 +364,7 @@ describe('SpeechService', () => {
       await newService.speak('Test');
 
       expect(selectedVoice).toBeTruthy();
-      expect((selectedVoice as any).name).toBe('Basic');
+      expect((selectedVoice as any).name).toBe('English Basic');
     });
   });
 });

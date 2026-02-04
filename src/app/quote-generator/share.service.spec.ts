@@ -232,19 +232,23 @@ describe('ShareService', () => {
   });
 
   describe('shareViaEmail', () => {
+    let navigateSpy: jasmine.Spy;
+
+    beforeEach(() => {
+      // Spy on the protected navigateToUrl method
+      navigateSpy = spyOn<any>(service, 'navigateToUrl');
+    });
+
     it('should create mailto link with subject and body', () => {
       const subject = 'Check this quote';
       const body = 'Here is an inspiring quote...';
 
-      // Spy on location.href setter
-      const locationHrefSpy = spyOnProperty(window.location, 'href', 'set');
-
       const result = service.shareViaEmail(subject, body);
 
       expect(result).toBe(true);
-      expect(locationHrefSpy).toHaveBeenCalled();
+      expect(navigateSpy).toHaveBeenCalled();
 
-      const mailtoUrl = locationHrefSpy.calls.mostRecent().args[0];
+      const mailtoUrl = navigateSpy.calls.mostRecent().args[0];
       expect(mailtoUrl).toContain('mailto:?');
       expect(mailtoUrl).toContain(`subject=${encodeURIComponent(subject)}`);
       expect(mailtoUrl).toContain(`body=${encodeURIComponent(body)}`);
@@ -254,11 +258,9 @@ describe('ShareService', () => {
       const subject = 'Subject with & and ?';
       const body = 'Body with <> and "quotes"';
 
-      const locationHrefSpy = spyOnProperty(window.location, 'href', 'set');
-
       service.shareViaEmail(subject, body);
 
-      const mailtoUrl = locationHrefSpy.calls.mostRecent().args[0];
+      const mailtoUrl = navigateSpy.calls.mostRecent().args[0];
       expect(mailtoUrl).toContain(encodeURIComponent(subject));
       expect(mailtoUrl).toContain(encodeURIComponent(body));
     });
