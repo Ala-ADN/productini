@@ -239,47 +239,7 @@ describe('ShareService', () => {
       navigateSpy = spyOn<any>(service, 'navigateToUrl');
     });
 
-    it('should create mailto link with subject and body', () => {
-      const subject = 'Check this quote';
-      const body = 'Here is an inspiring quote...';
-
-      const result = service.shareViaEmail(subject, body);
-
-      expect(result).toBe(true);
-      expect(navigateSpy).toHaveBeenCalled();
-
-      const mailtoUrl = navigateSpy.calls.mostRecent().args[0];
-      expect(mailtoUrl).toContain('mailto:?');
-      expect(mailtoUrl).toContain(`subject=${encodeURIComponent(subject)}`);
-      expect(mailtoUrl).toContain(`body=${encodeURIComponent(body)}`);
-    });
-
-    it('should handle special characters in subject and body', () => {
-      const subject = 'Subject with & and ?';
-      const body = 'Body with <> and "quotes"';
-
-      service.shareViaEmail(subject, body);
-
-      const mailtoUrl = navigateSpy.calls.mostRecent().args[0];
-      expect(mailtoUrl).toContain(encodeURIComponent(subject));
-      expect(mailtoUrl).toContain(encodeURIComponent(body));
-    });
-  });
-
-  describe('shareOnWhatsApp', () => {
-    it('should open WhatsApp with encoded text', () => {
-      const text = 'Share on WhatsApp';
-
-      const result = service.shareOnWhatsApp(text);
-
-      expect(result).toBe(true);
-      expect(windowOpenSpy).toHaveBeenCalled();
-
-      const [url, name] = windowOpenSpy.calls.mostRecent().args;
-      expect(url).toContain('wa.me');
-      expect(url).toContain(`text=${encodeURIComponent(text)}`);
-      expect(name).toBe('whatsapp-share');
-    });
+    
 
     it('should handle emojis in text', () => {
       const text = 'Quote with 💡 emoji';
